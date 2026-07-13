@@ -16,11 +16,7 @@ $current_user_id = get_current_user_id();
 $product_id       = isset( $_GET['product_id'] ) ? absint( $_GET['product_id'] ) : 0;
 $call_type        = isset( $_GET['call_type'] ) ? sanitize_key( wp_unslash( $_GET['call_type'] ) ) : '';
 
-$call_types = array(
-	'cold'    => __( 'Cold Call', 'sales-script-builder' ),
-	'inbound' => __( 'Inbound Call', 'sales-script-builder' ),
-	'upsell'  => __( 'Upsell', 'sales-script-builder' ),
-);
+$call_types = SSB_Favorites::get_call_type_labels();
 
 $all_products = get_posts(
 	array(
@@ -56,10 +52,24 @@ $all_products = get_posts(
 		<button type="submit" class="button"><?php esc_html_e( 'Load Script', 'sales-script-builder' ); ?></button>
 	</form>
 
-	<?php if ( $product_id && $call_type ) : ?>
+	<?php
+	// Only ever render a published ssb_product. Without this check, any post ID
+	// could be passed in via the query string and its title/content would be
+	// echoed below -- including private pages and other users' drafts.
+	$product = $product_id ? get_post( $product_id ) : null;
+
+	if ( $product && ( 'ssb_product' !== $product->post_type || 'publish' !== $product->post_status ) ) {
+		$product = null;
+	}
+	?>
+
+	<?php if ( $product_id && ! $product ) : ?>
+		<p class="ssb-error"><?php esc_html_e( 'That product/service could not be found.', 'sales-script-builder' ); ?></p>
+	<?php endif; ?>
+
+	<?php if ( $product && $call_type && isset( $call_types[ $call_type ] ) ) : ?>
 
 		<?php
-		$product        = get_post( $product_id );
 		$pain_points    = SSB_Meta_Fields::get_pain_points( $product_id );
 		$competitors    = SSB_Meta_Fields::get_competitors( $product_id );
 		$objections     = SSB_Meta_Fields::get_objections( $product_id );

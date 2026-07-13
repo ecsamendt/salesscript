@@ -16,9 +16,26 @@ class SSB_Meta_Fields {
 
 	public function __construct() {
 		add_action( 'add_meta_boxes', array( $this, 'register_meta_boxes' ) );
+		add_action( 'edit_form_after_title', array( $this, 'render_nonces' ) );
 		add_action( 'save_post_ssb_product', array( $this, 'save_product_meta' ) );
 		add_action( 'save_post_ssb_special', array( $this, 'save_special_meta' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+	}
+
+	/**
+	 * Nonces live here rather than inside a meta box callback on purpose: a meta
+	 * box can be hidden via Screen Options, in which case its callback never
+	 * runs, the nonce is never printed, and every save_* handler below would
+	 * bail out -- silently discarding the user's edits.
+	 */
+	public function render_nonces( WP_Post $post ): void {
+		if ( 'ssb_product' === $post->post_type ) {
+			wp_nonce_field( 'ssb_save_product_meta', 'ssb_product_nonce' );
+		}
+
+		if ( 'ssb_special' === $post->post_type ) {
+			wp_nonce_field( 'ssb_save_special_meta', 'ssb_special_nonce' );
+		}
 	}
 
 	public function enqueue_admin_assets( string $hook ): void {
@@ -29,7 +46,7 @@ class SSB_Meta_Fields {
 		}
 
 		wp_enqueue_style( 'ssb-admin', SSB_PLUGIN_URL . 'assets/css/admin.css', array(), SSB_VERSION );
-		wp_enqueue_script( 'ssb-admin-repeater', SSB_PLUGIN_URL . 'assets/js/admin-repeater.js', array( 'jquery' ), SSB_VERSION, true );
+		wp_enqueue_script( 'ssb-admin-repeater', SSB_PLUGIN_URL . 'assets/js/admin-repeater.js', array(), SSB_VERSION, true );
 	}
 
 	public function register_meta_boxes(): void {
@@ -48,7 +65,6 @@ class SSB_Meta_Fields {
 	 * ------------------------------------------------------------- */
 
 	public function render_pricing( WP_Post $post ): void {
-		wp_nonce_field( 'ssb_save_product_meta', 'ssb_product_nonce' );
 		$price = get_post_meta( $post->ID, '_ssb_price', true );
 		?>
 		<label for="ssb_price"><?php esc_html_e( 'Price / Tier', 'sales-script-builder' ); ?></label>
@@ -132,8 +148,6 @@ class SSB_Meta_Fields {
 	 * ------------------------------------------------------------- */
 
 	public function render_special_details( WP_Post $post ): void {
-		wp_nonce_field( 'ssb_save_special_meta', 'ssb_special_nonce' );
-
 		$start_date       = get_post_meta( $post->ID, '_ssb_start_date', true );
 		$end_date         = get_post_meta( $post->ID, '_ssb_end_date', true );
 		$terms            = get_post_meta( $post->ID, '_ssb_terms', true );
@@ -149,6 +163,8 @@ class SSB_Meta_Fields {
 			)
 		);
 		?>
+		<?php // Marker so save_special_meta() can tell "box was rendered, user cleared the fields" apart from "box was never rendered". ?>
+		<input type="hidden" name="ssb_special_details_present" value="1" />
 		<p>
 			<label for="ssb_start_date"><?php esc_html_e( 'Start Date', 'sales-script-builder' ); ?></label><br />
 			<input type="date" id="ssb_start_date" name="ssb_start_date" value="<?php echo esc_attr( $start_date ); ?>" />
@@ -231,7 +247,7 @@ class SSB_Meta_Fields {
 	 * ------------------------------------------------------------- */
 
 	public function save_product_meta( int $post_id ): void {
-		if ( ! isset( $_POST['ssb_product_nonce'] ) || ! wp_verify_nonce( $_POST['ssb_product_nonce'], 'ssb_save_product_meta' ) ) {
+		if ( ! isset( $_POST['ssb_product_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['ssb_product_nonce'] ) ), 'ssb_save_product_meta' ) ) {
 			return;
 		}
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
@@ -252,13 +268,17 @@ class SSB_Meta_Fields {
 	}
 
 	public function save_special_meta( int $post_id ): void {
-		if ( ! isset( $_POST['ssb_special_nonce'] ) || ! wp_verify_nonce( $_POST['ssb_special_nonce'], 'ssb_save_special_meta' ) ) {
+		if ( ! isset( $_POST['ssb_special_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['ssb_special_nonce'] ) ), 'ssb_save_special_meta' ) ) {
 			return;
 		}
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+		// The details meta box was not on this screen -- don't clear its data.
+		if ( ! isset( $_POST['ssb_special_details_present'] ) ) {
 			return;
 		}
 
@@ -271,8 +291,12 @@ class SSB_Meta_Fields {
 	}
 
 	private function save_repeater_field( int $post_id, string $meta_key, string $field_name ): void {
+		// Absent means the meta box was not rendered on this screen (e.g. hidden
+		// via Screen Options), NOT that the user cleared every row -- overwriting
+		// with an empty array here would silently destroy saved rows. Clearing all
+		// rows still works: the repeater always submits at least one (empty) row,
+		// which is filtered out below.
 		if ( ! isset( $_POST[ $field_name ] ) || ! is_array( $_POST[ $field_name ] ) ) {
-			update_post_meta( $post_id, $meta_key, array() );
 			return;
 		}
 

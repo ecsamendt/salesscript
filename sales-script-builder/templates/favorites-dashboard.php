@@ -15,11 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $current_user_id = get_current_user_id();
 $favorites        = SSB_Favorites::get_favorites_for_user( $current_user_id );
 
-$call_type_labels = array(
-	'cold'    => __( 'Cold Call', 'sales-script-builder' ),
-	'inbound' => __( 'Inbound Call', 'sales-script-builder' ),
-	'upsell'  => __( 'Upsell', 'sales-script-builder' ),
-);
+$call_type_labels = SSB_Favorites::get_call_type_labels();
 ?>
 <div class="ssb-favorites-dashboard">
 	<h2><?php esc_html_e( 'My Scripts', 'sales-script-builder' ); ?></h2>

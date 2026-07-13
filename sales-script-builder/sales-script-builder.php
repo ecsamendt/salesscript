@@ -55,14 +55,20 @@ final class Sales_Script_Builder {
 	}
 
 	private function __construct() {
-		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
-		add_action( 'init', array( $this, 'init' ) );
+		// Must be 'plugins_loaded', not 'init': the classes below register their
+		// own 'init' callbacks from their constructors, and a callback added to
+		// a priority that is already executing never runs in that same pass.
+		add_action( 'plugins_loaded', array( $this, 'init' ) );
+		add_action( 'init', array( $this, 'load_textdomain' ) );
 	}
 
 	/**
 	 * Loads translation files. Works alongside WPML/Polylang string translation,
 	 * but keeps a standard .mo/.po fallback so the plugin degrades gracefully
 	 * if a translation plugin is ever swapped out.
+	 *
+	 * Hooked to 'init' rather than 'plugins_loaded' -- WP 6.7+ emits a
+	 * _doing_it_wrong notice for translations loaded before 'init'.
 	 */
 	public function load_textdomain(): void {
 		load_plugin_textdomain( 'sales-script-builder', false, dirname( plugin_basename( SSB_PLUGIN_FILE ) ) . '/languages' );
@@ -80,6 +86,11 @@ final class Sales_Script_Builder {
 		new SSB_Access_Control();
 		new SSB_Shortcodes();
 		new SSB_Settings();
+
+		if ( is_admin() ) {
+			new SSB_Admin_Columns();
+			new SSB_Sample_Content();
+		}
 	}
 }
 
@@ -89,9 +100,12 @@ Sales_Script_Builder::instance();
  * Activation: flush rewrite rules so the new CPTs get working permalinks immediately.
  */
 function ssb_activate_plugin() {
-	// Ensure post types are registered before flushing.
-	( new SSB_Post_Types() )->register_post_types();
-	( new SSB_Post_Types() )->register_taxonomies();
+	// Ensure post types are registered before flushing. 'plugins_loaded' has
+	// already fired by the time an activation hook runs, so the normal bootstrap
+	// has not happened yet on this request -- register them directly.
+	$post_types = new SSB_Post_Types();
+	$post_types->register_post_types();
+	$post_types->register_taxonomies();
 	flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'ssb_activate_plugin' );

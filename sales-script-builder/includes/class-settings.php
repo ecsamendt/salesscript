@@ -62,8 +62,11 @@ class SSB_Settings {
 	 * Strips leading/trailing slashes and sanitizes to a valid slug, so it's
 	 * safe to drop straight into home_url( '/' . $slug . '/' ) elsewhere.
 	 */
-	public function sanitize_slug( string $value ): string {
-		$value = trim( $value, "/ \t\n\r\0\x0B" );
+	public function sanitize_slug( $value ): string {
+		// Deliberately untyped: register_setting() can hand this callback a null
+		// (e.g. when the option row is missing), which a `string` type hint would
+		// turn into a fatal TypeError under PHP 8.
+		$value = trim( (string) $value, "/ \t\n\r\0\x0B" );
 		$value = sanitize_title( $value );
 		return $value ? $value : self::DEFAULT_SLUG;
 	}
@@ -83,7 +86,7 @@ class SSB_Settings {
 		</p>
 		<?php
 		$page = get_page_by_path( $value );
-		if ( $page ) {
+		if ( $page && 'publish' === $page->post_status ) {
 			printf(
 				'<p class="description" style="color:#2271b1;">%s <a href="%s" target="_blank">%s</a></p>',
 				esc_html__( 'Matched to page:', 'sales-script-builder' ),

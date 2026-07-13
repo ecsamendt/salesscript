@@ -10,6 +10,15 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 /**
+ * WordPress loads this file on its own -- the plugin's normal bootstrap never
+ * runs, so nothing the plugin registers on 'init' exists right now. The post
+ * types can still be queried directly, but get_terms() hard-fails with an
+ * "Invalid taxonomy" WP_Error unless the taxonomy is registered first, which
+ * would leave every ssb_category term orphaned in the database.
+ */
+register_taxonomy( 'ssb_category', array( 'ssb_product' ) );
+
+/**
  * Delete all ssb_product and ssb_special posts (and their meta, via
  * wp_delete_post's built-in cleanup).
  */
@@ -53,8 +62,6 @@ if ( ! is_wp_error( $terms ) ) {
 delete_metadata( 'user', 0, 'ssb_favorite_scripts', '', true );
 
 /**
- * Remove any plugin-level options, if added in the future.
- * (No options are currently registered, but this is a placeholder so
- * whoever adds one later remembers to clean it up here too.)
+ * Remove plugin-level options.
  */
-// delete_option( 'ssb_some_future_option' );
+delete_option( 'ssb_script_view_slug' );

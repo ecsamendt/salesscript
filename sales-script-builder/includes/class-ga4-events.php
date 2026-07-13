@@ -19,11 +19,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class SSB_GA4_Events {
 
 	public function __construct() {
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'register_frontend_assets' ) );
 	}
 
-	public function enqueue_frontend_assets(): void {
-		// Only needed on pages where the script builder shortcode/template renders.
-		wp_enqueue_script( 'ssb-ga4-events', SSB_PLUGIN_URL . 'assets/js/ga4-events.js', array(), SSB_VERSION, true );
+	/**
+	 * Only needed on pages where the script builder shortcode renders, so this
+	 * registers the handle and SSB_Shortcodes enqueues it on demand.
+	 */
+	public function register_frontend_assets(): void {
+		wp_register_script( 'ssb-ga4-events', SSB_PLUGIN_URL . 'assets/js/ga4-events.js', array(), SSB_VERSION, true );
 	}
 }

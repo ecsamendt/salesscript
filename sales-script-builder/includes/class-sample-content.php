@@ -80,7 +80,13 @@ class SSB_Sample_Content {
 			return;
 		}
 
-		$message = 'inserted' === $_GET['ssb_sample_result']
+		$result = sanitize_key( wp_unslash( $_GET['ssb_sample_result'] ) );
+
+		if ( ! in_array( $result, array( 'inserted', 'removed' ), true ) ) {
+			return;
+		}
+
+		$message = 'inserted' === $result
 			? __( 'Sample content inserted.', 'sales-script-builder' )
 			: __( 'Sample content removed.', 'sales-script-builder' );
 		?>

@@ -12,16 +12,39 @@ class SSB_Favorites {
 
 	const META_KEY = 'ssb_favorite_scripts';
 
-	public function __construct() {
-		add_action( 'wp_ajax_ssb_toggle_favorite', array( $this, 'ajax_toggle_favorite' ) );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+	/**
+	 * The supported call types. Single source of truth -- the script view, the
+	 * favorites dashboard, and the AJAX validation above all read from here
+	 * rather than each keeping their own copy of the list.
+	 */
+	const CALL_TYPES = array( 'cold', 'inbound', 'upsell' );
+
+	/**
+	 * Translated labels, keyed by call type slug. Not a const because the
+	 * strings have to go through __() at runtime, after the textdomain loads.
+	 */
+	public static function get_call_type_labels(): array {
+		return array(
+			'cold'    => __( 'Cold Call', 'sales-script-builder' ),
+			'inbound' => __( 'Inbound Call', 'sales-script-builder' ),
+			'upsell'  => __( 'Upsell', 'sales-script-builder' ),
+		);
 	}
 
-	public function enqueue_frontend_assets(): void {
+	public function __construct() {
+		add_action( 'wp_ajax_ssb_toggle_favorite', array( $this, 'ajax_toggle_favorite' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'register_frontend_assets' ) );
+	}
+
+	/**
+	 * Registered here, enqueued by SSB_Shortcodes only when a shortcode renders.
+	 * The script is vanilla JS (fetch), so it does not depend on jQuery.
+	 */
+	public function register_frontend_assets(): void {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
-		wp_enqueue_script( 'ssb-favorites', SSB_PLUGIN_URL . 'assets/js/favorites.js', array( 'jquery' ), SSB_VERSION, true );
+		wp_register_script( 'ssb-favorites', SSB_PLUGIN_URL . 'assets/js/favorites.js', array(), SSB_VERSION, true );
 		wp_localize_script(
 			'ssb-favorites',
 			'ssbFavorites',
@@ -43,8 +66,9 @@ class SSB_Favorites {
 	public function ajax_toggle_favorite(): void {
 		check_ajax_referer( 'ssb_favorites_nonce', 'nonce' );
 
-		if ( ! is_user_logged_in() ) {
-			wp_send_json_error( array( 'message' => __( 'You must be logged in.', 'sales-script-builder' ) ), 401 );
+		// Membership, not just login -- SSB_Access_Control is the single gate.
+		if ( ! SSB_Access_Control::user_has_access() ) {
+			wp_send_json_error( array( 'message' => __( 'An active membership is required.', 'sales-script-builder' ) ), 403 );
 		}
 
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
@@ -52,6 +76,15 @@ class SSB_Favorites {
 
 		if ( ! $product_id || ! $call_type ) {
 			wp_send_json_error( array( 'message' => __( 'Missing product or call type.', 'sales-script-builder' ) ), 400 );
+		}
+
+		// Don't let arbitrary post IDs or made-up call types accumulate in user meta.
+		if ( 'ssb_product' !== get_post_type( $product_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown product.', 'sales-script-builder' ) ), 400 );
+		}
+
+		if ( ! in_array( $call_type, self::CALL_TYPES, true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown call type.', 'sales-script-builder' ) ), 400 );
 		}
 
 		$user_id   = get_current_user_id();
