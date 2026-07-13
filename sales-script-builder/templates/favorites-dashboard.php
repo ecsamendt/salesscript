@@ -4,18 +4,12 @@
  * SSB_Shortcodes::render_favorites_dashboard().
  *
  * Links back into the main script-view page with product_id/call_type
- * pre-filled via query args. NOTE: SSB_SCRIPT_VIEW_SLUG below must match
- * whatever page the [ssb_script_builder] shortcode actually lives on --
- * same slug used in class-access-control.php's is_page() check. Update
- * both places if the page slug changes.
+ * pre-filled via query args. The page slug comes from SSB_Settings::get_slug()
+ * (Sales Script Builder > Settings in wp-admin) -- no longer hardcoded here.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-if ( ! defined( 'SSB_SCRIPT_VIEW_SLUG' ) ) {
-	define( 'SSB_SCRIPT_VIEW_SLUG', 'sales-scripts' );
 }
 
 $current_user_id = get_current_user_id();
@@ -49,7 +43,7 @@ $call_type_labels = array(
 						'product_id' => $product->ID,
 						'call_type'  => $favorite['call_type'],
 					),
-					home_url( '/' . SSB_SCRIPT_VIEW_SLUG . '/' )
+					home_url( '/' . SSB_Settings::get_slug() . '/' )
 				);
 				?>
 				<li class="ssb-favorite-item">

@@ -79,6 +79,7 @@ final class Sales_Script_Builder {
 		new SSB_GA4_Events();
 		new SSB_Access_Control();
 		new SSB_Shortcodes();
+		new SSB_Settings();
 	}
 }
 
@@ -102,3 +103,4 @@ function ssb_deactivate_plugin() {
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'ssb_deactivate_plugin' );
+

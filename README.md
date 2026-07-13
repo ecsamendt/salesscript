@@ -33,7 +33,10 @@ sales-script-builder/
 │   ├── class-favorites.php      User-level favoriting (AJAX)
 │   ├── class-ga4-events.php     Enqueues anonymous GA4 event tracking
 │   ├── class-access-control.php Membership gate (MemberPress wrapper)
-│   └── class-shortcodes.php     [ssb_script_builder] front-end shortcode
+│   ├── class-shortcodes.php     [ssb_script_builder] + [ssb_favorites] shortcodes
+│   ├── class-settings.php       Settings page (script-view page slug)
+│   ├── class-sample-content.php One-click insert/remove of example data
+│   └── class-admin-columns.php  Custom admin list table columns
 ├── templates/
 │   └── script-view.php          Rep-facing script display
 ├── assets/
@@ -85,11 +88,13 @@ no separate DB table needed at this scale.
   starred, each linking straight into the script view
 
 Both shortcodes should be placed on their own pages. The favorites dashboard
-links back to the script-view page using a `SSB_SCRIPT_VIEW_SLUG` constant
-(defined in `templates/favorites-dashboard.php`, defaults to `sales-scripts`)
-— **this must match the actual slug of the page hosting `[ssb_script_builder]`**,
-and the same slug is checked in `class-access-control.php`'s `is_page()` call.
-All three should be updated together if the page slug ever changes.
+links back to the script-view page using the slug configured under
+**Products/Services > Settings** in wp-admin (`SSB_Settings::get_slug()`,
+option key `ssb_script_view_slug`, defaults to `sales-scripts`). This is now
+a single source of truth — `class-access-control.php` and
+`favorites-dashboard.php` both read from it instead of hardcoding the slug.
+The settings page also shows a live check confirming whether a published
+page currently matches the configured slug.
 
 ## GA4 tracking
 
@@ -107,19 +112,40 @@ The actual control is server-side: `class-access-control.php` re-verifies
 membership on every request rather than only at login, so access dies the
 moment a subscription is cancelled.
 
+## Sample content
+
+**Products/Services > Sample Content** in wp-admin has an "Insert Sample
+Data" button that creates two fully populated example products (FastNet 300
+and FastNet 1 Gig, each with pain points, competitor comparisons, and
+objections, linked by an upsell path) plus one active special tied to the
+first product. Useful for confirming the script view renders correctly
+before entering real content.
+
+All sample posts are tagged with post meta so they can be found and removed
+cleanly via the "Remove Sample Data" button on the same page — it won't
+touch any real content you've already added.
+
+## Admin list table columns
+
+**Products/Services** list adds: Category, Price, Pain Points (count),
+Objections (count), and Upsell Path (linked product title). Price is
+sortable.
+
+**Specials/Discounts** list adds: Status (Active/Upcoming/Expired badge,
+calculated live from today's date), Date Range, and Applies To (linked
+product titles). Date Range is sortable.
+
 ## Known open items / needs developer input
 
-1. **Front-end page slug**: `class-access-control.php` currently checks
-   `is_page( 'sales-scripts' )` — confirm the real page slug once created.
+1. **Set the page slug**: visit **Products/Services > Settings** in wp-admin
+   once the script-view page is created, and enter its slug there (defaults
+   to `sales-scripts`). The settings page will confirm whether it matches a
+   real published page.
 2. **Membership/join page URL**: hardcoded placeholder `/membership/` in
-   the redirect — confirm real URL.
+   the redirect (`class-access-control.php`) — confirm real URL.
 3. **WPML/Polylang**: not yet wired in. Need to confirm which one is used
    on the Image Generator plugin and match it here.
 4. **Tiered access**: not implemented (all active members get full access
    for now). Flag if Basic vs. Premium gating is needed before launch.
 5. **MemberPress confirmation**: once confirmed as permanent, remove the
    "logged in = access" fallback in `class-access-control.php`.
-6. **Page slug consistency**: `sales-scripts` is used in three places
-   (`class-access-control.php`, `templates/favorites-dashboard.php`, and
-   wherever `[ssb_script_builder]` is placed). Confirm all three match once
-   the real page is created.

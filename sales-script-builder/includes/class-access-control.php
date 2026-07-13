@@ -77,7 +77,7 @@ class SSB_Access_Control {
 	 * rather than showing a blank or error page.
 	 */
 	public function maybe_block_script_view(): void {
-		if ( ! is_page( 'sales-scripts' ) ) { // Adjust slug to match the actual front-end page.
+		if ( ! is_page( SSB_Settings::get_slug() ) ) {
 			return;
 		}
 
@@ -89,3 +89,4 @@ class SSB_Access_Control {
 		exit;
 	}
 }
+
