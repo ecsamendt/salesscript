@@ -29,6 +29,12 @@ class SSB_Access_Control {
 			return false;
 		}
 
+		// Admins are never paywalled -- they need to be able to preview scripts
+		// without holding a membership of their own.
+		if ( user_can( $user_id, 'manage_options' ) ) {
+			return true;
+		}
+
 		// --- MemberPress integration ---
 		if ( class_exists( 'MeprUser' ) ) {
 			$mepr_user = new MeprUser( $user_id );
@@ -40,11 +46,17 @@ class SSB_Access_Control {
 			return (bool) $mepr_user->is_active();
 		}
 
-		// --- Fallback for local dev before MemberPress is installed/active ---
-		// Defaults to "logged in = access" so the plugin is testable standalone.
-		// Remove or tighten this fallback once MemberPress is confirmed as the
-		// permanent membership solution.
-		return is_user_logged_in();
+		// MemberPress is not loaded, so membership cannot be verified. Fail closed:
+		// without this, every logged-in subscriber would get full access the moment
+		// MemberPress was deactivated or failed to load.
+		//
+		// Local dev without MemberPress must opt in explicitly, in wp-config.php:
+		//     define( 'SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS', true );
+		if ( defined( 'SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS' ) && SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS ) {
+			return is_user_logged_in();
+		}
+
+		return false;
 	}
 
 	/**
