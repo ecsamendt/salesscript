@@ -1,0 +1,23 @@
+.ssb-repeater-row {
+	background: #f9f9f9;
+	border: 1px solid #dcdcde;
+	padding: 12px;
+	margin-bottom: 10px;
+	border-radius: 4px;
+}
+
+.ssb-repeater-row p {
+	margin: 0 0 10px;
+}
+
+.ssb-repeater-row label {
+	font-weight: 600;
+}
+
+.ssb-remove-row {
+	color: #b32d2e;
+}
+
+.ssb-add-row {
+	margin-top: 4px;
+}

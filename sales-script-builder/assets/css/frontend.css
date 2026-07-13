@@ -1,0 +1,157 @@
+/*
+ * Copy-protection here is a deterrent, not a guarantee -- screenshots and
+ * dev tools always remain an option for a determined user. This raises
+ * friction for casual copy/paste without hurting readability.
+ */
+.ssb-script-builder[data-copy-protect="true"] {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	user-select: none;
+}
+
+.ssb-copy-notice {
+	display: none;
+	background: #333;
+	color: #fff;
+	padding: 8px 12px;
+	border-radius: 4px;
+	margin-bottom: 12px;
+	font-size: 14px;
+}
+
+.ssb-script-output {
+	max-width: 760px;
+	font-size: 17px;
+	line-height: 1.6;
+}
+
+.ssb-script-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 2px solid #222;
+	padding-bottom: 8px;
+	margin-bottom: 16px;
+}
+
+.ssb-favorite-btn {
+	background: none;
+	border: none;
+	font-size: 24px;
+	cursor: pointer;
+	color: #999;
+}
+
+.ssb-favorite-btn.is-favorited {
+	color: #e0a800;
+}
+
+.ssb-section {
+	margin-bottom: 24px;
+}
+
+.ssb-special-banner {
+	background: #fff7e6;
+	border-left: 4px solid #e0a800;
+	padding: 10px 14px;
+	margin-bottom: 16px;
+}
+
+.ssb-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.ssb-table th,
+.ssb-table td {
+	border: 1px solid #ddd;
+	padding: 8px;
+	text-align: left;
+}
+
+.ssb-objection {
+	margin-bottom: 14px;
+}
+
+.ssb-objection-text {
+	color: #555;
+}
+
+.ssb-upsell-path {
+	background: #f4f8ff;
+	border-left: 4px solid #2271b1;
+	padding: 10px 14px;
+	margin-bottom: 12px;
+}
+
+.ssb-favorites-dashboard {
+	max-width: 600px;
+}
+
+.ssb-empty-state {
+	color: #666;
+}
+
+.ssb-favorites-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.ssb-favorite-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 10px 14px;
+	margin-bottom: 8px;
+}
+
+.ssb-favorite-item a {
+	display: flex;
+	flex-direction: column;
+	text-decoration: none;
+	color: inherit;
+}
+
+.ssb-favorite-product {
+	font-weight: 600;
+}
+
+.ssb-favorite-call-type {
+	font-size: 13px;
+	color: #666;
+}
+
+/* Responsive: stack the picker + shrink table on narrow (mobile) viewports */
+@media ( max-width: 600px ) {
+	.ssb-picker {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.ssb-script-output {
+		font-size: 16px;
+	}
+
+	.ssb-table,
+	.ssb-table thead,
+	.ssb-table tbody,
+	.ssb-table th,
+	.ssb-table td,
+	.ssb-table tr {
+		display: block;
+	}
+
+	.ssb-table th {
+		display: none;
+	}
+
+	.ssb-table td {
+		border: none;
+		border-bottom: 1px solid #eee;
+	}
+}
+

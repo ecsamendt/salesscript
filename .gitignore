@@ -1,0 +1,29 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Local WP dev environments
+.wp-env.json
+wp-env-config/
+
+# Dependency directories (if build tooling is added later)
+node_modules/
+vendor/
+
+# Build output (if a build step is added later)
+dist/
+build/
+
+# Logs
+*.log
+debug.log
+
+# Environment/config
+.env
+.env.local
