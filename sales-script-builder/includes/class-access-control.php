@@ -35,6 +35,15 @@ class SSB_Access_Control {
 			return true;
 		}
 
+		// Enforcement is a deliberate, visible on/off switch (Products/Services >
+		// Settings), not something inferred from whether MemberPress happens to
+		// be active. While off, any logged-in user has access -- this is meant
+		// for testing before MemberPress goes live on the site. Flip it on when
+		// ready; nothing else needs to change.
+		if ( ! SSB_Settings::is_enforced() ) {
+			return is_user_logged_in();
+		}
+
 		// --- MemberPress integration ---
 		if ( class_exists( 'MeprUser' ) ) {
 			$mepr_user = new MeprUser( $user_id );
@@ -46,16 +55,8 @@ class SSB_Access_Control {
 			return (bool) $mepr_user->is_active();
 		}
 
-		// MemberPress is not loaded, so membership cannot be verified. Fail closed:
-		// without this, every logged-in subscriber would get full access the moment
-		// MemberPress was deactivated or failed to load.
-		//
-		// Local dev without MemberPress must opt in explicitly, in wp-config.php:
-		//     define( 'SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS', true );
-		if ( defined( 'SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS' ) && SSB_ALLOW_LOGGED_IN_WITHOUT_MEMBERPRESS ) {
-			return is_user_logged_in();
-		}
-
+		// Enforcement is on but MemberPress isn't loaded -- fail closed rather
+		// than silently granting access to every logged-in user.
 		return false;
 	}
 
@@ -101,4 +102,3 @@ class SSB_Access_Control {
 		exit;
 	}
 }
-

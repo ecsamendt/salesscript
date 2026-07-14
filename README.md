@@ -62,15 +62,25 @@ sales-script-builder/
 ## Access control
 
 `SSB_Access_Control::user_has_access()` is the **only** place that should
-check membership status. Everything else (shortcode, template, AJAX
-handlers) calls this method rather than touching MemberPress directly. If
-the membership plugin changes, only `class-access-control.php` needs to be
-rewritten.
+check membership status. Everything else (shortcode, template, favorites
+AJAX handler) calls this method rather than touching MemberPress directly.
+If the membership plugin changes, only `class-access-control.php` needs to
+be rewritten.
 
-Currently checks `MeprUser::is_active()`. Falls back to
-"logged in = access" if MemberPress isn't active, so the plugin stays
-testable in local dev before MemberPress is installed. **Remove that
-fallback once MemberPress is confirmed as permanent.**
+**Enforcement toggle** — Products/Services > Settings has a "Require an
+active MemberPress subscription" checkbox, off by default:
+- **OFF** (default): any logged-in user has access. Intended for testing
+  before MemberPress is live on the site.
+- **ON**: checks `MeprUser::is_active()`. If MemberPress isn't loaded while
+  enforcement is on, access fails closed (denied) rather than silently
+  granting it.
+
+Site admins (`manage_options`) always have access regardless of the toggle,
+so testing/previewing scripts never depends on holding a membership.
+
+**Turn enforcement ON before opening the site to real members** — that's
+the one manual step once MemberPress is confirmed as the permanent
+membership solution.
 
 Tier-based gating (e.g. Premium sees specials/upsell, Basic doesn't) is not
 implemented yet but the wrapper is structured to support it later via
@@ -147,5 +157,6 @@ product titles). Date Range is sortable.
    on the Image Generator plugin and match it here.
 4. **Tiered access**: not implemented (all active members get full access
    for now). Flag if Basic vs. Premium gating is needed before launch.
-5. **MemberPress confirmation**: once confirmed as permanent, remove the
-   "logged in = access" fallback in `class-access-control.php`.
+5. **Turn on membership enforcement**: once MemberPress is live, check the
+   box at **Products/Services > Settings** ("Require an active MemberPress
+   subscription"). It's off by default so the plugin stays testable now.

@@ -65,3 +65,4 @@ delete_metadata( 'user', 0, 'ssb_favorite_scripts', '', true );
  * Remove plugin-level options.
  */
 delete_option( 'ssb_script_view_slug' );
+delete_option( 'ssb_enforce_membership' );

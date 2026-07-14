@@ -15,6 +15,8 @@ class SSB_Settings {
 	const OPTION_KEY = 'ssb_script_view_slug';
 	const DEFAULT_SLUG = 'sales-scripts';
 
+	const ENFORCE_OPTION_KEY = 'ssb_enforce_membership';
+
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_settings_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
@@ -42,6 +44,16 @@ class SSB_Settings {
 			)
 		);
 
+		register_setting(
+			'ssb_settings_group',
+			self::ENFORCE_OPTION_KEY,
+			array(
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => false,
+			)
+		);
+
 		add_settings_section(
 			'ssb_settings_main',
 			__( 'Page Configuration', 'sales-script-builder' ),
@@ -53,6 +65,14 @@ class SSB_Settings {
 			self::OPTION_KEY,
 			__( 'Script View Page Slug', 'sales-script-builder' ),
 			array( $this, 'render_slug_field' ),
+			'ssb-settings',
+			'ssb_settings_main'
+		);
+
+		add_settings_field(
+			self::ENFORCE_OPTION_KEY,
+			__( 'Membership Enforcement', 'sales-script-builder' ),
+			array( $this, 'render_enforce_field' ),
 			'ssb-settings',
 			'ssb_settings_main'
 		);
@@ -101,6 +121,25 @@ class SSB_Settings {
 		}
 	}
 
+	public function render_enforce_field(): void {
+		$enforced = self::is_enforced();
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::ENFORCE_OPTION_KEY ); ?>" value="1" <?php checked( $enforced ); ?> />
+			<?php esc_html_e( 'Require an active MemberPress subscription to view scripts', 'sales-script-builder' ); ?>
+		</label>
+		<p class="description">
+			<?php if ( $enforced ) : ?>
+				<span style="color:#008a20;font-weight:600;"><?php esc_html_e( 'Enforcement is ON.', 'sales-script-builder' ); ?></span>
+				<?php esc_html_e( 'Only users with an active MemberPress membership (or site admins) can view scripts.', 'sales-script-builder' ); ?>
+			<?php else : ?>
+				<span style="color:#b32d2e;font-weight:600;"><?php esc_html_e( 'Enforcement is OFF.', 'sales-script-builder' ); ?></span>
+				<?php esc_html_e( 'Any logged-in user currently has access, regardless of membership status -- intended for testing before MemberPress goes live. Turn this on before opening the site to real members.', 'sales-script-builder' ); ?>
+			<?php endif; ?>
+		</p>
+		<?php
+	}
+
 	public function render_settings_page(): void {
 		?>
 		<div class="wrap">
@@ -123,5 +162,16 @@ class SSB_Settings {
 	public static function get_slug(): string {
 		$slug = get_option( self::OPTION_KEY, self::DEFAULT_SLUG );
 		return $slug ? $slug : self::DEFAULT_SLUG;
+	}
+
+	/**
+	 * Whether MemberPress membership should actually be checked. Defaults to
+	 * false (off) so the plugin is testable before MemberPress is live on
+	 * the site. Flip on from Products/Services > Settings once ready --
+	 * this is a deliberate, visible switch rather than something inferred
+	 * automatically from whether MemberPress happens to be active.
+	 */
+	public static function is_enforced(): bool {
+		return (bool) get_option( self::ENFORCE_OPTION_KEY, false );
 	}
 }
