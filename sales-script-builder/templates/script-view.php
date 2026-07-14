@@ -30,6 +30,21 @@ $all_products = get_posts(
 <div class="ssb-script-builder" data-copy-protect="true">
 
 	<form method="get" class="ssb-picker">
+		<?php
+		// Preserve any query args already on the URL (e.g. ?page_id=88143&preview=true
+		// on staging, or any other param the page was reached with). A GET form with
+		// no explicit action submits to the current path only and drops the existing
+		// query string -- without this, submitting the picker can land the visitor on
+		// the wrong page entirely (or lose preview mode) instead of reloading this one.
+		foreach ( $_GET as $key => $value ) {
+			if ( in_array( $key, array( 'product_id', 'call_type' ), true ) || is_array( $value ) ) {
+				continue;
+			}
+			?>
+			<input type="hidden" name="<?php echo esc_attr( $key ); ?>" value="<?php echo esc_attr( wp_unslash( $value ) ); ?>" />
+			<?php
+		}
+		?>
 		<label for="ssb-product-select"><?php esc_html_e( 'Product/Service', 'sales-script-builder' ); ?></label>
 		<select id="ssb-product-select" name="product_id" class="ssb-product-select">
 			<option value=""><?php esc_html_e( '-- Select --', 'sales-script-builder' ); ?></option>
