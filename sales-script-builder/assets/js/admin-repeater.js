@@ -27,6 +27,9 @@
 			newRow.querySelectorAll( 'input[type="text"]' ).forEach( function ( input ) {
 				input.value = '';
 			} );
+			newRow.querySelectorAll( 'textarea' ).forEach( function ( textarea ) {
+				textarea.value = '';
+			} );
 			newRow.querySelectorAll( 'select' ).forEach( function ( select ) {
 				select.selectedIndex = 0;
 			} );
@@ -47,8 +50,12 @@
 
 				// Always keep at least one row so the meta box never looks broken/empty.
 				if ( rows.length <= 1 ) {
-					btn.closest( '.ssb-repeater-row' ).querySelectorAll( 'input[type="text"]' ).forEach( function ( input ) {
+					const lastRow = btn.closest( '.ssb-repeater-row' );
+					lastRow.querySelectorAll( 'input[type="text"]' ).forEach( function ( input ) {
 						input.value = '';
+					} );
+					lastRow.querySelectorAll( 'textarea' ).forEach( function ( textarea ) {
+						textarea.value = '';
 					} );
 					return;
 				}

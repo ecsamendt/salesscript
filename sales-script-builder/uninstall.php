@@ -22,7 +22,7 @@ register_taxonomy( 'ssb_category', array( 'ssb_product' ) );
  * Delete all ssb_product and ssb_special posts (and their meta, via
  * wp_delete_post's built-in cleanup).
  */
-$post_types = array( 'ssb_product', 'ssb_special' );
+$post_types = array( 'ssb_product', 'ssb_special', 'ssb_competitor' );
 
 foreach ( $post_types as $post_type ) {
 	$posts = get_posts(

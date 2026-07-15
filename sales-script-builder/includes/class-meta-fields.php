@@ -41,7 +41,7 @@ class SSB_Meta_Fields {
 	public function enqueue_admin_assets( string $hook ): void {
 		global $post_type;
 
-		if ( ! in_array( $post_type, array( 'ssb_product', 'ssb_special' ), true ) ) {
+		if ( ! in_array( $post_type, array( 'ssb_product', 'ssb_special', 'ssb_competitor' ), true ) ) {
 			return;
 		}
 
@@ -53,6 +53,7 @@ class SSB_Meta_Fields {
 
 		add_meta_box( 'ssb_pain_points', __( 'Pain Points Solved', 'sales-script-builder' ), array( $this, 'render_pain_points' ), 'ssb_product', 'normal', 'high' );
 		add_meta_box( 'ssb_competitors', __( 'Competitor Comparisons', 'sales-script-builder' ), array( $this, 'render_competitors' ), 'ssb_product', 'normal', 'default' );
+		add_meta_box( 'ssb_linked_competitors', __( 'Linked Competitors (from library)', 'sales-script-builder' ), array( $this, 'render_linked_competitors' ), 'ssb_product', 'side', 'default' );
 		add_meta_box( 'ssb_objections', __( 'Objection Handling', 'sales-script-builder' ), array( $this, 'render_objections' ), 'ssb_product', 'normal', 'default' );
 		add_meta_box( 'ssb_upsell', __( 'Upsell / Next Path', 'sales-script-builder' ), array( $this, 'render_upsell' ), 'ssb_product', 'normal', 'default' );
 		add_meta_box( 'ssb_pricing', __( 'Pricing', 'sales-script-builder' ), array( $this, 'render_pricing' ), 'ssb_product', 'side', 'default' );
@@ -101,6 +102,47 @@ class SSB_Meta_Fields {
 		);
 	}
 
+	/**
+	 * Checkbox list linking this product to entries in the Competitors library
+	 * (see class-competitors.php). Distinct from the per-product comparison
+	 * repeater above: that's a manual feature-by-feature table, this is "which
+	 * shared competitor profiles apply to this tier" so the script view can
+	 * surface that competitor's general pros/cons/counters during discovery.
+	 */
+	public function render_linked_competitors( WP_Post $post ): void {
+		$linked = get_post_meta( $post->ID, '_ssb_linked_competitors', true );
+		$linked = is_array( $linked ) ? $linked : array();
+
+		$competitors = get_posts(
+			array(
+				'post_type'      => 'ssb_competitor',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			)
+		);
+
+		// Marker so save_product_meta() can tell "box was rendered, user unchecked
+		// everything" apart from "box was hidden via Screen Options" -- otherwise
+		// unchecking every competitor would look identical to the box being absent,
+		// and the existing selections would never actually clear.
+		echo '<input type="hidden" name="ssb_linked_competitors_present" value="1" />';
+
+		if ( empty( $competitors ) ) {
+			echo '<p class="description">' . esc_html__( 'No competitors in the library yet. Add some under Products/Services > Competitors.', 'sales-script-builder' ) . '</p>';
+			return;
+		}
+
+		foreach ( $competitors as $competitor ) {
+			?>
+			<label style="display:block;margin-bottom:6px;">
+				<input type="checkbox" name="ssb_linked_competitors[]" value="<?php echo esc_attr( $competitor->ID ); ?>" <?php checked( in_array( $competitor->ID, $linked, true ) ); ?> />
+				<?php echo esc_html( $competitor->post_title ); ?>
+			</label>
+			<?php
+		}
+	}
+
 	public function render_objections( WP_Post $post ): void {
 		$rows = get_post_meta( $post->ID, '_ssb_objections', true );
 		$rows = is_array( $rows ) ? $rows : array();
@@ -108,10 +150,34 @@ class SSB_Meta_Fields {
 			'ssb_objections',
 			$rows,
 			array(
-				'objection' => __( 'Customer Concern', 'sales-script-builder' ),
-				'response'  => __( 'Suggested Response', 'sales-script-builder' ),
-				'style'     => __( 'Tone (empathetic / direct / data-driven)', 'sales-script-builder' ),
-			)
+				'objection_type' => __( 'Objection Type', 'sales-script-builder' ),
+				'objection'      => __( 'Customer Concern', 'sales-script-builder' ),
+				'response'       => __( 'Script (what to say)', 'sales-script-builder' ),
+				'key_points'     => __( 'Key Points Recap (one per line, for going off script)', 'sales-script-builder' ),
+				'counter_script' => __( 'Counter Script (optional -- shown if rep tries to overcome the objection)', 'sales-script-builder' ),
+				'style'          => __( 'Tone (empathetic / direct / data-driven)', 'sales-script-builder' ),
+			),
+			array( 'objection_type' => self::get_objection_type_labels() ),
+			array( 'key_points', 'counter_script' ) // Render as <textarea> instead of <input>.
+		);
+	}
+
+	/**
+	 * Objection type controls which decision path the rep sees in the script
+	 * view: "timing" (and similarly structured types) offer a respect-it vs.
+	 * counter-it choice before landing on a follow-up off-ramp; "standard"
+	 * types go straight to the scripted response.
+	 */
+	public static function get_objection_type_labels(): array {
+		return array(
+			'timing'      => __( 'Timing', 'sales-script-builder' ),
+			'price'       => __( 'Price / Budget', 'sales-script-builder' ),
+			'need'        => __( 'Need / Value', 'sales-script-builder' ),
+			'trust'       => __( 'Trust / Credibility', 'sales-script-builder' ),
+			'authority'   => __( 'Authority / Decision-maker', 'sales-script-builder' ),
+			'competitor'  => __( 'Competitor Comparison', 'sales-script-builder' ),
+			'risk'        => __( 'Risk / Change Aversion', 'sales-script-builder' ),
+			'skepticism'  => __( 'Skepticism', 'sales-script-builder' ),
 		);
 	}
 
@@ -205,8 +271,9 @@ class SSB_Meta_Fields {
 	 * @param array  $rows         Existing saved rows.
 	 * @param array  $columns      key => label pairs for each column in a row.
 	 * @param array  $select_options Optional: [key => [value => label]] for columns that should render as <select> instead of <input>.
+	 * @param array  $textarea_fields Optional: list of keys that should render as <textarea> instead of <input>.
 	 */
-	private function render_repeater( string $field_name, array $rows, array $columns, array $select_options = array() ): void {
+	private function render_repeater( string $field_name, array $rows, array $columns, array $select_options = array(), array $textarea_fields = array() ): void {
 		if ( empty( $rows ) ) {
 			$rows = array( array_fill_keys( array_keys( $columns ), '' ) );
 		}
@@ -227,6 +294,8 @@ class SSB_Meta_Fields {
 											</option>
 										<?php endforeach; ?>
 									</select>
+								<?php elseif ( in_array( $key, $textarea_fields, true ) ) : ?>
+									<textarea class="widefat" rows="3" name="<?php echo esc_attr( $field_name . '[' . $i . '][' . $key . ']' ); ?>"><?php echo esc_textarea( isset( $row[ $key ] ) ? $row[ $key ] : '' ); ?></textarea>
 								<?php else : ?>
 									<input type="text" class="widefat" name="<?php echo esc_attr( $field_name . '[' . $i . '][' . $key . ']' ); ?>" value="<?php echo esc_attr( isset( $row[ $key ] ) ? $row[ $key ] : '' ); ?>" />
 								<?php endif; ?>
@@ -259,6 +328,11 @@ class SSB_Meta_Fields {
 
 		if ( isset( $_POST['ssb_price'] ) ) {
 			update_post_meta( $post_id, '_ssb_price', sanitize_text_field( wp_unslash( $_POST['ssb_price'] ) ) );
+		}
+
+		if ( isset( $_POST['ssb_linked_competitors_present'] ) ) {
+			$linked = isset( $_POST['ssb_linked_competitors'] ) ? array_map( 'intval', (array) $_POST['ssb_linked_competitors'] ) : array();
+			update_post_meta( $post_id, '_ssb_linked_competitors', $linked );
 		}
 
 		$this->save_repeater_field( $post_id, '_ssb_pain_points', 'ssb_pain_points' );
@@ -307,13 +381,6 @@ class SSB_Meta_Fields {
 			}
 			$clean_row = array();
 			foreach ( $row as $key => $value ) {
-				// A repeater cell is always a single string. A crafted POST can send
-				// an array here (e.g. field[0][col][]=x); sanitize_text_field() would
-				// then emit an "Array to string conversion" warning and store garbage,
-				// so coerce any non-scalar to an empty string first.
-				if ( ! is_scalar( $value ) ) {
-					$value = '';
-				}
 				$clean_row[ sanitize_key( $key ) ] = sanitize_text_field( wp_unslash( $value ) );
 			}
 			// Skip fully empty rows.
@@ -347,6 +414,28 @@ class SSB_Meta_Fields {
 	public static function get_upsell_paths( int $product_id ): array {
 		$rows = get_post_meta( $product_id, '_ssb_upsell_paths', true );
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Returns the WP_Post objects for competitors linked to this product from
+	 * the shared Competitors library (see class-competitors.php).
+	 */
+	public static function get_linked_competitors( int $product_id ): array {
+		$ids = get_post_meta( $product_id, '_ssb_linked_competitors', true );
+		$ids = is_array( $ids ) ? array_map( 'intval', $ids ) : array();
+
+		if ( empty( $ids ) ) {
+			return array();
+		}
+
+		return get_posts(
+			array(
+				'post_type'      => 'ssb_competitor',
+				'post__in'       => $ids,
+				'orderby'        => 'post__in',
+				'posts_per_page' => -1,
+			)
+		);
 	}
 
 	/**
@@ -388,3 +477,4 @@ class SSB_Meta_Fields {
 		);
 	}
 }
+

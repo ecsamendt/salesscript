@@ -25,6 +25,8 @@ class SSB_Shortcodes {
 	public function register_frontend_assets(): void {
 		wp_register_style( 'ssb-frontend', SSB_PLUGIN_URL . 'assets/css/frontend.css', array(), SSB_VERSION );
 		wp_register_script( 'ssb-copy-protect', SSB_PLUGIN_URL . 'assets/js/copy-protect.js', array(), SSB_VERSION, true );
+		wp_register_script( 'ssb-objection-buttons', SSB_PLUGIN_URL . 'assets/js/objection-buttons.js', array(), SSB_VERSION, true );
+		wp_register_script( 'ssb-discovery', SSB_PLUGIN_URL . 'assets/js/discovery.js', array(), SSB_VERSION, true );
 	}
 
 	/**
@@ -37,6 +39,8 @@ class SSB_Shortcodes {
 		wp_enqueue_script( 'ssb-copy-protect' );
 		wp_enqueue_script( 'ssb-ga4-events' );
 		wp_enqueue_script( 'ssb-favorites' );
+		wp_enqueue_script( 'ssb-objection-buttons' );
+		wp_enqueue_script( 'ssb-discovery' );
 	}
 
 	public function render_script_builder(): string {

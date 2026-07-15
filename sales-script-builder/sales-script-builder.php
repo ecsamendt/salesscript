@@ -3,7 +3,7 @@
  * Plugin Name:       Sales Script Builder
  * Plugin URI:         https://example.com/sales-script-builder
  * Description:        Stores products/services, pain points, competitor comparisons, objection handling, and upsell paths, then assembles them into live call scripts (cold call, inbound, upsell) for members.
- * Version:            0.1.1
+ * Version:            0.1.0
  * Requires at least:  6.0
  * Requires PHP:       8.0
  * Author:             Your Company
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SSB_VERSION', '0.1.1' );
+define( 'SSB_VERSION', '0.1.0' );
 define( 'SSB_PLUGIN_FILE', __FILE__ );
 define( 'SSB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SSB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -80,6 +80,7 @@ final class Sales_Script_Builder {
 	 */
 	public function init(): void {
 		new SSB_Post_Types();
+		new SSB_Competitors();
 		new SSB_Meta_Fields();
 		new SSB_Favorites();
 		new SSB_GA4_Events();
@@ -106,6 +107,7 @@ function ssb_activate_plugin() {
 	$post_types = new SSB_Post_Types();
 	$post_types->register_post_types();
 	$post_types->register_taxonomies();
+	( new SSB_Competitors() )->register_post_type();
 	flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'ssb_activate_plugin' );

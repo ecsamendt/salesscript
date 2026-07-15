@@ -29,6 +29,7 @@ sales-script-builder/
 ├── sales-script-builder.php     Main plugin file, bootstraps everything
 ├── includes/
 │   ├── class-post-types.php     CPTs: ssb_product, ssb_special + ssb_category taxonomy
+│   ├── class-competitors.php    Competitors library CPT (pros/cons/counters)
 │   ├── class-meta-fields.php    Repeater meta boxes + read helpers
 │   ├── class-favorites.php      User-level favoriting (AJAX)
 │   ├── class-ga4-events.php     Enqueues anonymous GA4 event tracking
@@ -38,9 +39,11 @@ sales-script-builder/
 │   ├── class-sample-content.php One-click insert/remove of example data
 │   └── class-admin-columns.php  Custom admin list table columns
 ├── templates/
-│   └── script-view.php          Rep-facing script display
+│   ├── script-view.php          Rep-facing script display
+│   └── favorites-dashboard.php  "My Scripts" favorites list
 ├── assets/
-│   ├── js/                      admin-repeater, favorites, ga4-events, copy-protect
+│   ├── js/                      admin-repeater, favorites, ga4-events, copy-protect,
+│   │                             objection-buttons, discovery
 │   └── css/                     admin.css, frontend.css
 └── languages/                   .mo/.po files (empty — pending WPML/Polylang setup)
 ```
@@ -50,14 +53,65 @@ sales-script-builder/
 **`ssb_product`** (Product/Service)
 - Title, description (post_content), price/tier
 - Repeater: pain points + trigger phrases
-- Repeater: competitor comparisons (name, feature, us, them, why it matters)
-- Repeater: objections (concern, response, tone)
+- Repeater: competitor comparisons (name, feature, us, them, why it matters) — manual, feature-by-feature
+- Linked Competitors — checkbox list referencing entries in the Competitors library (see below)
+- Repeater: objections — objection type, concern, script, key points (recap, one per line), counter script (optional), tone
 - Repeater: upsell paths (linked next product, benefit, ideal timing)
 - Taxonomy: `ssb_category`
 
 **`ssb_special`** (Special/Discount)
 - Title, description, start/end date, applicable products (checkbox list)
 - "Active" is calculated from today's date vs. start/end — no manual expiry
+
+**`ssb_competitor`** (Competitors library)
+- Title (competitor name)
+- Their pros (textarea, one per line — stay honest here, it's what makes the counter credible)
+- Their cons (textarea, one per line)
+- Counter talking points (textarea, one per line)
+- Referenced from products via "Linked Competitors" and surfaced during the
+  outbound discovery step when a rep selects which competitor a prospect
+  named. Separate from the per-product comparison repeater above: this is
+  general reusable knowledge, entered once; the repeater is a manual,
+  feature-by-feature table entered per product.
+
+## Discovery step
+
+Shown at the top of the script view, before pain points, on **cold** and
+**inbound** calls only (upsell scripts skip straight to the pitch, since the
+rep already knows the customer).
+
+- **Cold call**: asks what the prospect currently uses. "Using a competitor"
+  opens a picker (built from the product's Linked Competitors, or the whole
+  library if none are linked) showing that competitor's pros/cons/counters
+  inline. "Not using anyone" shows a prompt to ask why not.
+- **Inbound call**: asks why they're calling, with three branches — looking
+  for a new provider, shopping around (scrolls to the comparison table),
+  or already ready to buy (guidance to skip to close).
+
+All of this is presentation only, driven by `assets/js/discovery.js` reading
+a JSON data attribute built server-side — nothing here writes back to the
+database.
+
+## Objection handling UI
+
+Objections render as tappable buttons (`assets/js/objection-buttons.js`),
+not a static list:
+
+- All objections show as buttons at the start of a call. Once tapped, an
+  objection's button is removed from the row and listed under "Already
+  discussed" — this state lives in memory for that page load only and
+  resets on the next call, it is never saved.
+- Selecting an objection shows the script on the left (or on top, on mobile)
+  and a **key points recap** on the right (or below) — short phrases pulled
+  from the `key_points` field, meant for a rep who wants to go off script
+  but stay on the main points.
+- If an objection has a `counter_script`, a **"Try to counter"** button
+  appears. Clicking it reveals the counter script plus four outcome
+  buttons: *still hesitant* (off-ramp, ends the branch), *compare* (scrolls
+  to the `#ssb-compare` comparison table), *close sale*, and *discuss
+  upsell* (scrolls to `#ssb-upsell`, only present on upsell-type scripts).
+  This pattern isn't limited to timing objections — any objection with a
+  counter script filled in gets the same "Try to counter" option.
 
 ## Access control
 
@@ -127,9 +181,11 @@ moment a subscription is cancelled.
 **Products/Services > Sample Content** in wp-admin has an "Insert Sample
 Data" button that creates two fully populated example products (FastNet 300
 and FastNet 1 Gig, each with pain points, competitor comparisons, and
-objections, linked by an upsell path) plus one active special tied to the
-first product. Useful for confirming the script view renders correctly
-before entering real content.
+objections — including one with a counter script — linked by an upsell
+path), one active special tied to the first product, and one Competitors
+library entry ("MegaCable," with pros/cons/counters) linked to both
+products. Useful for confirming the discovery step, objection buttons, and
+comparison table all render correctly before entering real content.
 
 All sample posts are tagged with post meta so they can be found and removed
 cleanly via the "Remove Sample Data" button on the same page — it won't
@@ -144,6 +200,18 @@ sortable.
 **Specials/Discounts** list adds: Status (Active/Upcoming/Expired badge,
 calculated live from today's date), Date Range, and Applies To (linked
 product titles). Date Range is sortable.
+
+## Fixed: picker form dropped the page's own query string
+
+`templates/script-view.php`'s product/call-type picker uses `method="get"`
+with no `action`. A GET form with no explicit action submits to the current
+*path* only and drops any existing query string -- on a staging site using
+`?page_id=X&preview=true` (or any site with plain, non-pretty permalinks),
+submitting the picker would strip those params and land the visitor
+somewhere else entirely (wrong page or lost preview mode), instead of
+reloading the script-view page with the script content. Fixed by carrying
+forward any existing `$_GET` params (other than `product_id`/`call_type`)
+as hidden fields.
 
 ## Known open items / needs developer input
 
@@ -160,3 +228,14 @@ product titles). Date Range is sortable.
 5. **Turn on membership enforcement**: once MemberPress is live, check the
    box at **Products/Services > Settings** ("Require an active MemberPress
    subscription"). It's off by default so the plugin stays testable now.
+6. **"Close sale" outcome has no dedicated destination yet**: in the
+   objection counter-script outcomes, "still hesitant" and "close sale"
+   just show an inline note (no section to scroll to); "compare" and
+   "upsell" scroll to existing sections. If a dedicated close/checkout flow
+   gets built later, wire that outcome button to it in
+   `assets/js/objection-buttons.js`.
+7. **Tier-matched comparisons are manual for now**: the Linked Competitors
+   field surfaces general pros/cons/counters during discovery, but the
+   per-product "How We Compare" table is still entered by hand per tier
+   rather than auto-pulling from the library. Revisit if that manual entry
+   becomes a bottleneck once more tiers exist.

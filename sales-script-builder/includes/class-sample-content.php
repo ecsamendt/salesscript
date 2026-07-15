@@ -38,7 +38,7 @@ class SSB_Sample_Content {
 	private function sample_exists(): bool {
 		$existing = get_posts(
 			array(
-				'post_type'      => array( 'ssb_product', 'ssb_special' ),
+				'post_type'      => array( 'ssb_product', 'ssb_special', 'ssb_competitor' ),
 				'posts_per_page' => 1,
 				'meta_key'       => self::SAMPLE_FLAG_META,
 				'meta_value'     => 1,
@@ -54,7 +54,7 @@ class SSB_Sample_Content {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Sample Content', 'sales-script-builder' ); ?></h1>
 			<p>
-				<?php esc_html_e( 'Insert two fully populated example products (pain points, competitor comparisons, objections, and an upsell path linking them) plus one active special, so you have real data to test the script view against before entering your own content.', 'sales-script-builder' ); ?>
+				<?php esc_html_e( 'Insert two fully populated example products (pain points, competitor comparisons, objections with key points and a counter script, and an upsell path linking them), one active special, and one Competitors library entry linked to both products -- so you have real data to test the script view against before entering your own content.', 'sales-script-builder' ); ?>
 			</p>
 
 			<?php if ( $has_sample ) : ?>
@@ -145,6 +145,23 @@ class SSB_Sample_Content {
 			return;
 		}
 
+		// --- Competitors library entry ---
+		$competitor_id = wp_insert_post(
+			array(
+				'post_type'   => 'ssb_competitor',
+				'post_status' => 'publish',
+				'post_title'  => 'MegaCable',
+			)
+		);
+		if ( ! is_wp_error( $competitor_id ) ) {
+			update_post_meta( $competitor_id, self::SAMPLE_FLAG_META, 1 );
+			update_post_meta( $competitor_id, '_ssb_competitor_pros', "Bundles with cable TV, which some households still want\nWidely recognized brand name\nBrick-and-mortar stores for in-person support" );
+			update_post_meta( $competitor_id, '_ssb_competitor_cons', "1TB data cap with steep overage fees\nRequires a 2-year contract\nAsymmetrical upload speeds on their gig tier" );
+			update_post_meta( $competitor_id, '_ssb_competitor_counters', "We don't cap data, so multi-device households never see a surprise overage fee.\nNo annual contract means switching later costs nothing.\nOur gig tier is symmetrical, which matters for video calls and cloud backups." );
+			update_post_meta( $product_1_id, '_ssb_linked_competitors', array( $competitor_id ) );
+			update_post_meta( $product_2_id, '_ssb_linked_competitors', array( $competitor_id ) );
+		}
+
 		if ( $term_id ) {
 			wp_set_post_terms( $product_1_id, array( $term_id ), 'ssb_category' );
 			wp_set_post_terms( $product_2_id, array( $term_id ), 'ssb_category' );
@@ -197,14 +214,20 @@ class SSB_Sample_Content {
 			'_ssb_objections',
 			array(
 				array(
-					'objection' => "That's more than what I'm paying now.",
-					'response'  => "I understand -- and part of that is because there's no data cap here, so you won't see a surprise overage charge later. When you factor that in, most switching customers end up paying about the same or less each month.",
-					'style'     => 'empathetic',
+					'objection_type' => 'price',
+					'objection'      => "That's more than what I'm paying now.",
+					'response'       => "I understand -- and part of that is because there's no data cap here, so you won't see a surprise overage charge later. When you factor that in, most switching customers end up paying about the same or less each month.",
+					'key_points'     => "No data cap, no surprise overage fees\nMost switchers pay about the same or less overall\nCurrent special: 50% off first 3 months",
+					'counter_script' => '',
+					'style'          => 'empathetic',
 				),
 				array(
-					'objection' => 'I need to think about it.',
-					'response'  => 'Totally fair. While I have you, is there a specific concern I can address right now -- price, speed, or the install process?',
-					'style'     => 'direct',
+					'objection_type' => 'timing',
+					'objection'      => 'I need to think about it / I\'m locked into a contract right now.',
+					'response'       => 'Totally fair. Would it help if I followed up closer to when your current contract wraps up, so you\'re not paying for two services at once?',
+					'key_points'     => "Respect the no, don't push\nOffer a specific follow-up window\nKeep the door open",
+					'counter_script' => "Actually, a lot of customers switch even mid-contract once they see the savings from no data caps -- it can offset an early termination fee within a few months. Want me to run the numbers for your specific situation?",
+					'style'          => 'direct',
 				),
 			)
 		);
@@ -254,9 +277,12 @@ class SSB_Sample_Content {
 			'_ssb_objections',
 			array(
 				array(
-					'objection' => "Do I really need that much speed?",
-					'response'  => "If you've got more than 3-4 people streaming or gaming at once, yes -- this tier is built specifically so nobody has to compete for bandwidth.",
-					'style'     => 'data-driven',
+					'objection_type' => 'need',
+					'objection'      => 'Do I really need that much speed?',
+					'response'       => "If you've got more than 3-4 people streaming or gaming at once, yes -- this tier is built specifically so nobody has to compete for bandwidth.",
+					'key_points'     => "Built for 3-4+ simultaneous heavy users\nNo bandwidth competition between devices",
+					'counter_script' => '',
+					'style'          => 'data-driven',
 				),
 			)
 		);
@@ -293,7 +319,7 @@ class SSB_Sample_Content {
 
 		$sample_posts = get_posts(
 			array(
-				'post_type'      => array( 'ssb_product', 'ssb_special' ),
+				'post_type'      => array( 'ssb_product', 'ssb_special', 'ssb_competitor' ),
 				'posts_per_page' => -1,
 				'meta_key'       => self::SAMPLE_FLAG_META,
 				'meta_value'     => 1,
@@ -315,3 +341,4 @@ class SSB_Sample_Content {
 		exit;
 	}
 }
+
