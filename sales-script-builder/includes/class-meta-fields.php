@@ -307,6 +307,13 @@ class SSB_Meta_Fields {
 			}
 			$clean_row = array();
 			foreach ( $row as $key => $value ) {
+				// A repeater cell is always a single string. A crafted POST can send
+				// an array here (e.g. field[0][col][]=x); sanitize_text_field() would
+				// then emit an "Array to string conversion" warning and store garbage,
+				// so coerce any non-scalar to an empty string first.
+				if ( ! is_scalar( $value ) ) {
+					$value = '';
+				}
 				$clean_row[ sanitize_key( $key ) ] = sanitize_text_field( wp_unslash( $value ) );
 			}
 			// Skip fully empty rows.
