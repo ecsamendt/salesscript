@@ -65,7 +65,7 @@ class SSB_Meta_Fields {
 	 * PRODUCT META BOXES
 	 * ------------------------------------------------------------- */
 
-	public function render_pricing( WP_Post $post ): void {
+	public static function render_pricing( WP_Post $post ): void {
 		$price = get_post_meta( $post->ID, '_ssb_price', true );
 		?>
 		<label for="ssb_price"><?php esc_html_e( 'Price / Tier', 'sales-script-builder' ); ?></label>
@@ -73,10 +73,10 @@ class SSB_Meta_Fields {
 		<?php
 	}
 
-	public function render_pain_points( WP_Post $post ): void {
+	public static function render_pain_points( WP_Post $post ): void {
 		$rows = get_post_meta( $post->ID, '_ssb_pain_points', true );
 		$rows = is_array( $rows ) ? $rows : array();
-		$this->render_repeater(
+		self::render_repeater(
 			'ssb_pain_points',
 			$rows,
 			array(
@@ -86,10 +86,10 @@ class SSB_Meta_Fields {
 		);
 	}
 
-	public function render_competitors( WP_Post $post ): void {
+	public static function render_competitors( WP_Post $post ): void {
 		$rows = get_post_meta( $post->ID, '_ssb_competitors', true );
 		$rows = is_array( $rows ) ? $rows : array();
-		$this->render_repeater(
+		self::render_repeater(
 			'ssb_competitors',
 			$rows,
 			array(
@@ -109,7 +109,7 @@ class SSB_Meta_Fields {
 	 * shared competitor profiles apply to this tier" so the script view can
 	 * surface that competitor's general pros/cons/counters during discovery.
 	 */
-	public function render_linked_competitors( WP_Post $post ): void {
+	public static function render_linked_competitors( WP_Post $post ): void {
 		$linked = get_post_meta( $post->ID, '_ssb_linked_competitors', true );
 		$linked = is_array( $linked ) ? $linked : array();
 
@@ -143,10 +143,10 @@ class SSB_Meta_Fields {
 		}
 	}
 
-	public function render_objections( WP_Post $post ): void {
+	public static function render_objections( WP_Post $post ): void {
 		$rows = get_post_meta( $post->ID, '_ssb_objections', true );
 		$rows = is_array( $rows ) ? $rows : array();
-		$this->render_repeater(
+		self::render_repeater(
 			'ssb_objections',
 			$rows,
 			array(
@@ -181,7 +181,7 @@ class SSB_Meta_Fields {
 		);
 	}
 
-	public function render_upsell( WP_Post $post ): void {
+	public static function render_upsell( WP_Post $post ): void {
 		$rows           = get_post_meta( $post->ID, '_ssb_upsell_paths', true );
 		$rows           = is_array( $rows ) ? $rows : array();
 		$all_products   = get_posts(
@@ -197,7 +197,7 @@ class SSB_Meta_Fields {
 		foreach ( $all_products as $product ) {
 			$product_options[ $product->ID ] = $product->post_title;
 		}
-		$this->render_repeater(
+		self::render_repeater(
 			'ssb_upsell_paths',
 			$rows,
 			array(
@@ -273,7 +273,7 @@ class SSB_Meta_Fields {
 	 * @param array  $select_options Optional: [key => [value => label]] for columns that should render as <select> instead of <input>.
 	 * @param array  $textarea_fields Optional: list of keys that should render as <textarea> instead of <input>.
 	 */
-	private function render_repeater( string $field_name, array $rows, array $columns, array $select_options = array(), array $textarea_fields = array() ): void {
+	private static function render_repeater( string $field_name, array $rows, array $columns, array $select_options = array(), array $textarea_fields = array() ): void {
 		if ( empty( $rows ) ) {
 			$rows = array( array_fill_keys( array_keys( $columns ), '' ) );
 		}
@@ -326,6 +326,17 @@ class SSB_Meta_Fields {
 			return;
 		}
 
+		self::save_product_fields_from_post( $post_id );
+	}
+
+	/**
+	 * The actual field-saving logic, deliberately separated from the nonce and
+	 * capability checks above. This is what SSB_Frontend_Editor calls after
+	 * its own (different) nonce and access checks, so the sanitization rules
+	 * live in exactly one place regardless of whether the save came from
+	 * wp-admin or the front-end product editor.
+	 */
+	public static function save_product_fields_from_post( int $post_id ): void {
 		if ( isset( $_POST['ssb_price'] ) ) {
 			update_post_meta( $post_id, '_ssb_price', sanitize_text_field( wp_unslash( $_POST['ssb_price'] ) ) );
 		}
@@ -335,10 +346,10 @@ class SSB_Meta_Fields {
 			update_post_meta( $post_id, '_ssb_linked_competitors', $linked );
 		}
 
-		$this->save_repeater_field( $post_id, '_ssb_pain_points', 'ssb_pain_points' );
-		$this->save_repeater_field( $post_id, '_ssb_competitors', 'ssb_competitors' );
-		$this->save_repeater_field( $post_id, '_ssb_objections', 'ssb_objections' );
-		$this->save_repeater_field( $post_id, '_ssb_upsell_paths', 'ssb_upsell_paths' );
+		self::save_repeater_field( $post_id, '_ssb_pain_points', 'ssb_pain_points' );
+		self::save_repeater_field( $post_id, '_ssb_competitors', 'ssb_competitors' );
+		self::save_repeater_field( $post_id, '_ssb_objections', 'ssb_objections' );
+		self::save_repeater_field( $post_id, '_ssb_upsell_paths', 'ssb_upsell_paths' );
 	}
 
 	public function save_special_meta( int $post_id ): void {
@@ -364,7 +375,7 @@ class SSB_Meta_Fields {
 		update_post_meta( $post_id, '_ssb_applicable_products', $applicable );
 	}
 
-	private function save_repeater_field( int $post_id, string $meta_key, string $field_name ): void {
+	private static function save_repeater_field( int $post_id, string $meta_key, string $field_name ): void {
 		// Absent means the meta box was not rendered on this screen (e.g. hidden
 		// via Screen Options), NOT that the user cleared every row -- overwriting
 		// with an empty array here would silently destroy saved rows. Clearing all
@@ -477,4 +488,3 @@ class SSB_Meta_Fields {
 		);
 	}
 }
-

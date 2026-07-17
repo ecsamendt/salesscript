@@ -17,6 +17,9 @@ class SSB_Settings {
 
 	const ENFORCE_OPTION_KEY = 'ssb_enforce_membership';
 
+	const MANAGE_OPTION_KEY = 'ssb_manage_page_slug';
+	const MANAGE_DEFAULT_SLUG = 'manage-scripts';
+
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_settings_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
@@ -54,6 +57,16 @@ class SSB_Settings {
 			)
 		);
 
+		register_setting(
+			'ssb_settings_group',
+			self::MANAGE_OPTION_KEY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_manage_slug' ),
+				'default'           => self::MANAGE_DEFAULT_SLUG,
+			)
+		);
+
 		add_settings_section(
 			'ssb_settings_main',
 			__( 'Page Configuration', 'sales-script-builder' ),
@@ -65,6 +78,14 @@ class SSB_Settings {
 			self::OPTION_KEY,
 			__( 'Script View Page Slug', 'sales-script-builder' ),
 			array( $this, 'render_slug_field' ),
+			'ssb-settings',
+			'ssb_settings_main'
+		);
+
+		add_settings_field(
+			self::MANAGE_OPTION_KEY,
+			__( 'Manage Products Page Slug', 'sales-script-builder' ),
+			array( $this, 'render_manage_slug_field' ),
 			'ssb-settings',
 			'ssb_settings_main'
 		);
@@ -101,6 +122,42 @@ class SSB_Settings {
 				/* translators: %s: example page slug */
 				esc_html__( 'The slug of the page where you\'ve placed the [ssb_script_builder] shortcode (e.g. %s, no leading/trailing slashes). This same value gates membership access and is used to build links from the "My Scripts" favorites dashboard.', 'sales-script-builder' ),
 				'<code>sales-scripts</code>'
+			);
+			?>
+		</p>
+		<?php
+		$page = get_page_by_path( $value );
+		if ( $page && 'publish' === $page->post_status ) {
+			printf(
+				'<p class="description" style="color:#2271b1;">%s <a href="%s" target="_blank">%s</a></p>',
+				esc_html__( 'Matched to page:', 'sales-script-builder' ),
+				esc_url( get_permalink( $page ) ),
+				esc_html( $page->post_title )
+			);
+		} else {
+			printf(
+				'<p class="description" style="color:#b32d2e;">%s</p>',
+				esc_html__( 'No published page currently matches this slug -- create it or update the slug above.', 'sales-script-builder' )
+			);
+		}
+	}
+
+	public function sanitize_manage_slug( $value ): string {
+		$value = trim( (string) $value, "/ \t\n\r\0\x0B" );
+		$value = sanitize_title( $value );
+		return $value ? $value : self::MANAGE_DEFAULT_SLUG;
+	}
+
+	public function render_manage_slug_field(): void {
+		$value = self::get_manage_slug();
+		?>
+		<input type="text" name="<?php echo esc_attr( self::MANAGE_OPTION_KEY ); ?>" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: example page slug */
+				esc_html__( 'The slug of the page where you\'ve placed the [ssb_manage_products] shortcode (e.g. %s). This is where members create and edit their own products.', 'sales-script-builder' ),
+				'<code>manage-scripts</code>'
 			);
 			?>
 		</p>
@@ -162,6 +219,14 @@ class SSB_Settings {
 	public static function get_slug(): string {
 		$slug = get_option( self::OPTION_KEY, self::DEFAULT_SLUG );
 		return $slug ? $slug : self::DEFAULT_SLUG;
+	}
+
+	/**
+	 * Public read helper for the front-end product manager page slug.
+	 */
+	public static function get_manage_slug(): string {
+		$slug = get_option( self::MANAGE_OPTION_KEY, self::MANAGE_DEFAULT_SLUG );
+		return $slug ? $slug : self::MANAGE_DEFAULT_SLUG;
 	}
 
 	/**

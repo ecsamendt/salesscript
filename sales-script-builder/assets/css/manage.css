@@ -1,0 +1,75 @@
+.ssb-manage-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+
+.ssb-manage-products {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	max-width: 640px;
+}
+
+.ssb-manage-product-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 10px 14px;
+	margin-bottom: 8px;
+}
+
+.ssb-manage-product-actions {
+	display: flex;
+	gap: 12px;
+}
+
+.ssb-draft-tag {
+	color: #999;
+	font-size: 13px;
+	margin-left: 6px;
+}
+
+.ssb-inline-delete {
+	display: inline;
+	margin: 0;
+}
+
+.ssb-link-btn {
+	background: none;
+	border: none;
+	padding: 0;
+	color: #b32d2e;
+	text-decoration: underline;
+	cursor: pointer;
+	font-size: inherit;
+}
+
+.ssb-manage-form {
+	max-width: 720px;
+}
+
+.ssb-manage-section {
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	padding: 14px 16px;
+	margin: 16px 0;
+}
+
+.ssb-manage-section h3 {
+	margin-top: 0;
+}
+
+.ssb-saved-notice {
+	background: #eafbea;
+	border-left: 4px solid #46b450;
+	padding: 8px 12px;
+	color: #1a5c1a;
+}
+
+.ssb-error {
+	color: #b32d2e;
+}

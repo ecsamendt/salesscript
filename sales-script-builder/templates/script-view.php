@@ -29,6 +29,10 @@ $all_products = get_posts(
 ?>
 <div class="ssb-script-builder" data-copy-protect="true">
 
+	<p class="ssb-manage-link">
+		<a href="<?php echo esc_url( home_url( '/' . SSB_Settings::get_manage_slug() . '/' ) ); ?>"><?php esc_html_e( 'Manage Products/Services', 'sales-script-builder' ); ?> &rarr;</a>
+	</p>
+
 	<form method="get" class="ssb-picker">
 		<?php
 		// Preserve any query args already on the URL (e.g. ?page_id=88143&preview=true
