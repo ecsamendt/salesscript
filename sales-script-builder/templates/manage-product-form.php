@@ -71,11 +71,6 @@ if ( is_wp_error( $categories ) ) {
 		</p>
 
 		<p>
-			<label for="ssb-post-content"><?php esc_html_e( 'Description / Overview', 'sales-script-builder' ); ?></label><br />
-			<textarea id="ssb-post-content" name="post_content" class="widefat" rows="4"><?php echo esc_textarea( $product->post_content ?? '' ); ?></textarea>
-		</p>
-
-		<p>
 			<label for="ssb-category"><?php esc_html_e( 'Category', 'sales-script-builder' ); ?></label><br />
 			<select id="ssb-category" name="ssb_category">
 				<option value=""><?php esc_html_e( '-- None --', 'sales-script-builder' ); ?></option>
@@ -94,7 +89,14 @@ if ( is_wp_error( $categories ) ) {
 
 		<div class="ssb-manage-section">
 			<h3><?php esc_html_e( 'Pain Points Solved', 'sales-script-builder' ); ?></h3>
+			<p class="description"><?php esc_html_e( 'Each pain point can include an acknowledgment/pivot script -- what the rep says when a customer names this specific issue.', 'sales-script-builder' ); ?></p>
 			<?php SSB_Meta_Fields::render_pain_points( $product ); ?>
+		</div>
+
+		<div class="ssb-manage-section">
+			<h3><?php esc_html_e( 'Overview Highlights', 'sales-script-builder' ); ?></h3>
+			<p class="description"><?php esc_html_e( 'Short, individually-mentionable features -- shown to the rep alongside whichever pain point is active, as "on top of that, you also get..." material.', 'sales-script-builder' ); ?></p>
+			<?php SSB_Meta_Fields::render_overview_highlights( $product ); ?>
 		</div>
 
 		<div class="ssb-manage-section">
@@ -120,6 +122,11 @@ if ( is_wp_error( $categories ) ) {
 		<?php else : ?>
 			<p class="description"><?php esc_html_e( 'Upsell paths can be added once this product is saved, since it needs to exist to be linked from another product.', 'sales-script-builder' ); ?></p>
 		<?php endif; ?>
+
+		<div class="ssb-manage-section">
+			<h3><?php esc_html_e( 'Internal Notes', 'sales-script-builder' ); ?></h3>
+			<?php SSB_Meta_Fields::render_internal_notes( $product ); ?>
+		</div>
 
 		<p>
 			<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Product', 'sales-script-builder' ); ?></button>

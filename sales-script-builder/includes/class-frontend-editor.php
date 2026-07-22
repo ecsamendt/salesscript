@@ -87,7 +87,6 @@ class SSB_Frontend_Editor {
 
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
 		$title      = isset( $_POST['post_title'] ) ? sanitize_text_field( wp_unslash( $_POST['post_title'] ) ) : '';
-		$content    = isset( $_POST['post_content'] ) ? wp_kses_post( wp_unslash( $_POST['post_content'] ) ) : '';
 		$category   = isset( $_POST['ssb_category'] ) ? absint( $_POST['ssb_category'] ) : 0;
 
 		if ( '' === trim( $title ) ) {
@@ -103,19 +102,17 @@ class SSB_Frontend_Editor {
 			}
 			wp_update_post(
 				array(
-					'ID'           => $product_id,
-					'post_title'   => $title,
-					'post_content' => $content,
+					'ID'         => $product_id,
+					'post_title' => $title,
 				)
 			);
 		} else {
 			$product_id = wp_insert_post(
 				array(
-					'post_type'    => 'ssb_product',
-					'post_status'  => 'publish',
-					'post_title'   => $title,
-					'post_content' => $content,
-					'post_author'  => get_current_user_id(),
+					'post_type'   => 'ssb_product',
+					'post_status' => 'publish',
+					'post_title'  => $title,
+					'post_author' => get_current_user_id(),
 				)
 			);
 		}

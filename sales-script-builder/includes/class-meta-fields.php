@@ -52,11 +52,13 @@ class SSB_Meta_Fields {
 	public function register_meta_boxes(): void {
 
 		add_meta_box( 'ssb_pain_points', __( 'Pain Points Solved', 'sales-script-builder' ), array( $this, 'render_pain_points' ), 'ssb_product', 'normal', 'high' );
+		add_meta_box( 'ssb_overview_highlights', __( 'Overview Highlights', 'sales-script-builder' ), array( $this, 'render_overview_highlights' ), 'ssb_product', 'normal', 'high' );
 		add_meta_box( 'ssb_competitors', __( 'Competitor Comparisons', 'sales-script-builder' ), array( $this, 'render_competitors' ), 'ssb_product', 'normal', 'default' );
 		add_meta_box( 'ssb_linked_competitors', __( 'Linked Competitors (from library)', 'sales-script-builder' ), array( $this, 'render_linked_competitors' ), 'ssb_product', 'side', 'default' );
 		add_meta_box( 'ssb_objections', __( 'Objection Handling', 'sales-script-builder' ), array( $this, 'render_objections' ), 'ssb_product', 'normal', 'default' );
 		add_meta_box( 'ssb_upsell', __( 'Upsell / Next Path', 'sales-script-builder' ), array( $this, 'render_upsell' ), 'ssb_product', 'normal', 'default' );
 		add_meta_box( 'ssb_pricing', __( 'Pricing', 'sales-script-builder' ), array( $this, 'render_pricing' ), 'ssb_product', 'side', 'default' );
+		add_meta_box( 'ssb_internal_notes', __( 'Internal Notes (not shown to reps)', 'sales-script-builder' ), array( $this, 'render_internal_notes' ), 'ssb_product', 'side', 'low' );
 
 		add_meta_box( 'ssb_special_details', __( 'Special/Discount Details', 'sales-script-builder' ), array( $this, 'render_special_details' ), 'ssb_special', 'normal', 'high' );
 	}
@@ -82,8 +84,44 @@ class SSB_Meta_Fields {
 			array(
 				'pain_point'      => __( 'Pain Point', 'sales-script-builder' ),
 				'trigger_phrases' => __( 'Trigger Phrases (comma separated)', 'sales-script-builder' ),
+				'pivot_script'    => __( 'Acknowledgment / Pivot Script (what the rep says when this pain point comes up)', 'sales-script-builder' ),
+			),
+			array(),
+			array( 'pivot_script' ) // Render as <textarea>.
+		);
+	}
+
+	/**
+	 * Rep-facing "on top of that" highlights, shown alongside whichever pain
+	 * point is currently active. Replaces the old single Overview paragraph
+	 * (see render_internal_notes() for where that went instead). Each row is
+	 * one short, independently mutable highlight -- the front-end tracks
+	 * "mentioned" state client-side per product, per call; nothing here
+	 * stores that state, this only stores the highlight text itself.
+	 */
+	public static function render_overview_highlights( WP_Post $post ): void {
+		$rows = get_post_meta( $post->ID, '_ssb_overview_highlights', true );
+		$rows = is_array( $rows ) ? $rows : array();
+		self::render_repeater(
+			'ssb_overview_highlights',
+			$rows,
+			array(
+				'highlight' => __( 'Highlight (short phrase, e.g. "No data cap")', 'sales-script-builder' ),
 			)
 		);
+	}
+
+	/**
+	 * Admin/management-only notes. Was previously the native post_content
+	 * editor, shown to reps as "Overview" -- now split out so nothing here
+	 * is ever rendered in the script view.
+	 */
+	public static function render_internal_notes( WP_Post $post ): void {
+		$value = get_post_meta( $post->ID, '_ssb_internal_notes', true );
+		?>
+		<p class="description"><?php esc_html_e( 'Not shown to reps. Use this for anything the team managing products needs to remember -- sourcing notes, pending changes, etc.', 'sales-script-builder' ); ?></p>
+		<textarea class="widefat" rows="4" name="ssb_internal_notes"><?php echo esc_textarea( $value ); ?></textarea>
+		<?php
 	}
 
 	public static function render_competitors( WP_Post $post ): void {
@@ -213,7 +251,7 @@ class SSB_Meta_Fields {
 	 * SPECIAL/DISCOUNT META BOX
 	 * ------------------------------------------------------------- */
 
-	public function render_special_details( WP_Post $post ): void {
+	public static function render_special_details( WP_Post $post ): void {
 		$start_date       = get_post_meta( $post->ID, '_ssb_start_date', true );
 		$end_date         = get_post_meta( $post->ID, '_ssb_end_date', true );
 		$terms            = get_post_meta( $post->ID, '_ssb_terms', true );
@@ -341,12 +379,17 @@ class SSB_Meta_Fields {
 			update_post_meta( $post_id, '_ssb_price', sanitize_text_field( wp_unslash( $_POST['ssb_price'] ) ) );
 		}
 
+		if ( isset( $_POST['ssb_internal_notes'] ) ) {
+			update_post_meta( $post_id, '_ssb_internal_notes', sanitize_textarea_field( wp_unslash( $_POST['ssb_internal_notes'] ) ) );
+		}
+
 		if ( isset( $_POST['ssb_linked_competitors_present'] ) ) {
 			$linked = isset( $_POST['ssb_linked_competitors'] ) ? array_map( 'intval', (array) $_POST['ssb_linked_competitors'] ) : array();
 			update_post_meta( $post_id, '_ssb_linked_competitors', $linked );
 		}
 
 		self::save_repeater_field( $post_id, '_ssb_pain_points', 'ssb_pain_points' );
+		self::save_repeater_field( $post_id, '_ssb_overview_highlights', 'ssb_overview_highlights' );
 		self::save_repeater_field( $post_id, '_ssb_competitors', 'ssb_competitors' );
 		self::save_repeater_field( $post_id, '_ssb_objections', 'ssb_objections' );
 		self::save_repeater_field( $post_id, '_ssb_upsell_paths', 'ssb_upsell_paths' );
@@ -362,7 +405,17 @@ class SSB_Meta_Fields {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return;
 		}
-		// The details meta box was not on this screen -- don't clear its data.
+
+		self::save_special_fields_from_post( $post_id );
+	}
+
+	/**
+	 * The actual field-saving logic, separated from the nonce/capability
+	 * checks above for the same reason as save_product_fields_from_post() --
+	 * so the front-end specials editor can reuse it after its own checks.
+	 */
+	public static function save_special_fields_from_post( int $post_id ): void {
+		// The details fields were not on this screen -- don't clear their data.
 		if ( ! isset( $_POST['ssb_special_details_present'] ) ) {
 			return;
 		}
@@ -412,6 +465,20 @@ class SSB_Meta_Fields {
 		return is_array( $rows ) ? $rows : array();
 	}
 
+	public static function get_overview_highlights( int $product_id ): array {
+		$rows = get_post_meta( $product_id, '_ssb_overview_highlights', true );
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Admin/management-only -- never render this in the script view. See
+	 * render_internal_notes() for why this is separate from Overview Highlights.
+	 */
+	public static function get_internal_notes( int $product_id ): string {
+		$notes = get_post_meta( $product_id, '_ssb_internal_notes', true );
+		return is_string( $notes ) ? $notes : '';
+	}
+
 	public static function get_competitors( int $product_id ): array {
 		$rows = get_post_meta( $product_id, '_ssb_competitors', true );
 		return is_array( $rows ) ? $rows : array();
@@ -447,6 +514,58 @@ class SSB_Meta_Fields {
 				'posts_per_page' => -1,
 			)
 		);
+	}
+
+	/**
+	 * The reverse of get_linked_competitors(): given a competitor, which
+	 * products link to it. Used by "Competitors At A Glance" so a rep can see
+	 * everything comparable to a competitor without knowing which product to
+	 * check first. Iterates all products in PHP rather than a meta_query,
+	 * since "Linked Competitors" is stored as a serialized array and WP's
+	 * meta_query can't reliably search inside one -- fine at this scale
+	 * (a single business's product catalog), reconsider only if that catalog
+	 * grows into the hundreds.
+	 *
+	 * Each result includes 'next_tier': the WP_Post for the next upsell step
+	 * from that product, if one exists, so the flashcard can flag it without
+	 * a second lookup.
+	 */
+	public static function get_products_linked_to_competitor( int $competitor_id ): array {
+		$all_products = get_posts(
+			array(
+				'post_type'      => 'ssb_product',
+				'posts_per_page' => -1,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			)
+		);
+
+		$matches = array();
+
+		foreach ( $all_products as $product ) {
+			$linked_ids = get_post_meta( $product->ID, '_ssb_linked_competitors', true );
+			$linked_ids = is_array( $linked_ids ) ? array_map( 'intval', $linked_ids ) : array();
+
+			if ( ! in_array( $competitor_id, $linked_ids, true ) ) {
+				continue;
+			}
+
+			$next_tier = null;
+			$upsell_paths = self::get_upsell_paths( $product->ID );
+			if ( ! empty( $upsell_paths[0]['next_product_id'] ) ) {
+				$next_tier = get_post( $upsell_paths[0]['next_product_id'] );
+				if ( ! $next_tier || 'ssb_product' !== $next_tier->post_type ) {
+					$next_tier = null;
+				}
+			}
+
+			$matches[] = array(
+				'product'   => $product,
+				'next_tier' => $next_tier,
+			);
+		}
+
+		return $matches;
 	}
 
 	/**

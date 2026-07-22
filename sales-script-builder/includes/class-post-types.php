@@ -16,6 +16,11 @@ class SSB_Post_Types {
 
 	public function register_post_types(): void {
 
+		// NOTE: 'editor' support was intentionally removed. Product descriptions
+		// used to be the native post_content editor, shown to reps as "Overview".
+		// That's now split into two distinct fields (see class-meta-fields.php):
+		// an "Internal Notes" meta field (admin-only, never shown to reps) and
+		// an "Overview Highlights" repeater (rep-facing, individually mutable).
 		register_post_type(
 			'ssb_product',
 			array(
@@ -30,7 +35,7 @@ class SSB_Post_Types {
 				'show_ui'      => true,
 				'show_in_menu' => true,
 				'menu_icon'    => 'dashicons-megaphone',
-				'supports'     => array( 'title', 'editor' ),
+				'supports'     => array( 'title' ),
 				'has_archive'  => false,
 				'rewrite'      => false,
 				'show_in_rest' => true, // Needed for block-editor meta boxes / future REST use.

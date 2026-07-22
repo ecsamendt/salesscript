@@ -54,7 +54,7 @@ class SSB_Sample_Content {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Sample Content', 'sales-script-builder' ); ?></h1>
 			<p>
-				<?php esc_html_e( 'Insert two fully populated example products (pain points, competitor comparisons, objections with key points and a counter script, and an upsell path linking them), one active special, and one Competitors library entry linked to both products -- so you have real data to test the script view against before entering your own content.', 'sales-script-builder' ); ?>
+				<?php esc_html_e( 'Insert two fully populated example products (pain points with acknowledgment/pivot scripts, overview highlights, competitor comparisons, objections with key points and a counter script, and an upsell path linking them), one active special, and one Competitors library entry linked to both products -- so you have real data to test against before entering your own content.', 'sales-script-builder' ); ?>
 			</p>
 
 			<?php if ( $has_sample ) : ?>
@@ -124,26 +124,27 @@ class SSB_Sample_Content {
 		// --- Product 1: base plan ---
 		$product_1_id = wp_insert_post(
 			array(
-				'post_type'    => 'ssb_product',
-				'post_status'  => 'publish',
-				'post_title'   => 'FastNet 300 Home Internet',
-				'post_content' => 'Reliable 300 Mbps fiber internet for everyday browsing, streaming, and video calls. No data caps, no annual contract.',
+				'post_type'   => 'ssb_product',
+				'post_status' => 'publish',
+				'post_title'  => 'FastNet 300 Home Internet',
 			)
 		);
 
 		// --- Product 2: upgrade tier (created first so Product 1 can link to it) ---
 		$product_2_id = wp_insert_post(
 			array(
-				'post_type'    => 'ssb_product',
-				'post_status'  => 'publish',
-				'post_title'   => 'FastNet 1 Gig Home Internet',
-				'post_content' => 'Our fastest residential tier at 1000 Mbps -- built for multi-device households, 4K streaming on several screens at once, and heavy remote work/gaming use.',
+				'post_type'   => 'ssb_product',
+				'post_status' => 'publish',
+				'post_title'  => 'FastNet 1 Gig Home Internet',
 			)
 		);
 
 		if ( is_wp_error( $product_1_id ) || is_wp_error( $product_2_id ) ) {
 			return;
 		}
+
+		update_post_meta( $product_1_id, '_ssb_internal_notes', 'Entry-tier plan. Sourced from the standard residential fiber offering.' );
+		update_post_meta( $product_2_id, '_ssb_internal_notes', 'Upsell target from FastNet 300. Highest residential tier currently offered.' );
 
 		// --- Competitors library entry ---
 		$competitor_id = wp_insert_post(
@@ -180,11 +181,23 @@ class SSB_Sample_Content {
 				array(
 					'pain_point'      => 'Current internet is too slow for streaming and working from home at the same time.',
 					'trigger_phrases' => 'buffering, slow wifi, video keeps freezing',
+					'pivot_script'    => "That's one of the more common issues I hear from folks switching over. Our service addresses that by giving you dedicated fiber bandwidth, so streaming and video calls don't compete with each other.",
 				),
 				array(
 					'pain_point'      => 'Frustrated with data caps or overage charges from current provider.',
 					'trigger_phrases' => 'data cap, extra charges, overage fee',
+					'pivot_script'    => "Makes sense -- that's a real setback. Our service addresses that with unlimited data, so there's never a surprise charge at the end of the month.",
 				),
+			)
+		);
+
+		update_post_meta(
+			$product_1_id,
+			'_ssb_overview_highlights',
+			array(
+				array( 'highlight' => 'No annual contract' ),
+				array( 'highlight' => '24/7 customer support' ),
+				array( 'highlight' => 'Free professional installation' ),
 			)
 		);
 
@@ -254,7 +267,17 @@ class SSB_Sample_Content {
 				array(
 					'pain_point'      => 'Multiple people in the household streaming, gaming, and working on video calls simultaneously causes lag.',
 					'trigger_phrases' => 'lag, everyone online at once, slows down when kids are home',
+					'pivot_script'    => "I can understand how frustrating that gets. Our 1 Gig tier addresses that by giving everyone in the house their own dedicated bandwidth, so nobody's fighting for speed.",
 				),
+			)
+		);
+
+		update_post_meta(
+			$product_2_id,
+			'_ssb_overview_highlights',
+			array(
+				array( 'highlight' => 'Symmetrical upload and download speeds' ),
+				array( 'highlight' => 'Priority customer support line' ),
 			)
 		);
 
@@ -341,4 +364,3 @@ class SSB_Sample_Content {
 		exit;
 	}
 }
-

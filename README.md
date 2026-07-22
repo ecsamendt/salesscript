@@ -30,37 +30,62 @@ sales-script-builder/
 ├── includes/
 │   ├── class-post-types.php     CPTs: ssb_product, ssb_special + ssb_category taxonomy
 │   ├── class-competitors.php    Competitors library CPT (pros/cons/counters)
-│   ├── class-meta-fields.php    Repeater meta boxes + read helpers
+│   ├── class-meta-fields.php    Repeater meta boxes + read helpers (static, reusable)
 │   ├── class-favorites.php      User-level favoriting (AJAX)
 │   ├── class-ga4-events.php     Enqueues anonymous GA4 event tracking
 │   ├── class-access-control.php Membership gate (MemberPress wrapper)
 │   ├── class-shortcodes.php     [ssb_script_builder] + [ssb_favorites] shortcodes
-│   ├── class-settings.php       Settings page (script-view page slug)
+│   ├── class-settings.php       Settings page (every plugin page slug + enforcement)
 │   ├── class-sample-content.php One-click insert/remove of example data
-│   └── class-admin-columns.php  Custom admin list table columns
+│   ├── class-admin-columns.php  Custom admin list table columns
+│   ├── class-hub.php            [ssb_hub] landing page (members' entry point)
+│   ├── class-frontend-editor.php      Front-end product create/edit (members)
+│   ├── class-frontend-competitors.php Front-end competitor create/edit (members)
+│   └── class-frontend-specials.php    Front-end special create/edit (members)
 ├── templates/
-│   ├── script-view.php          Rep-facing script display
-│   └── favorites-dashboard.php  "My Scripts" favorites list
+│   ├── script-view.php               Rep-facing script display
+│   ├── favorites-dashboard.php       "My Scripts" favorites list
+│   ├── manage-products-list.php      Front-end product list
+│   ├── manage-product-form.php       Front-end product create/edit form
+│   ├── manage-competitors-list.php   Front-end competitor list
+│   ├── manage-competitor-form.php    Front-end competitor create/edit form
+│   ├── manage-specials-list.php      Front-end special list
+│   └── manage-special-form.php       Front-end special create/edit form
 ├── assets/
 │   ├── js/                      admin-repeater, favorites, ga4-events, copy-protect,
 │   │                             objection-buttons, discovery
-│   └── css/                     admin.css, frontend.css
+│   └── css/                     admin.css, frontend.css, manage.css, hub.css
 └── languages/                   .mo/.po files (empty — pending WPML/Polylang setup)
 ```
 
 ## Data model
 
 **`ssb_product`** (Product/Service)
-- Title, description (post_content), price/tier
-- Repeater: pain points + trigger phrases
-- Repeater: competitor comparisons (name, feature, us, them, why it matters) — manual, feature-by-feature
-- Linked Competitors — checkbox list referencing entries in the Competitors library (see below)
-- Repeater: objections — objection type, concern, script, key points (recap, one per line), counter script (optional), tone
+- Title, price/tier
+- **No native editor support** — the old single post_content "Description"
+  field was split into two, per the SPA redesign spec (see
+  `/mnt/user-data/outputs/sales-script-builder-spa-spec.md` for the full
+  rationale):
+  - **Internal Notes** (`_ssb_internal_notes`) — admin/management-only,
+    never shown to reps
+  - **Overview Highlights** (`_ssb_overview_highlights`) — repeater of
+    short, individually-mutable rep-facing highlights, replacing the old
+    single paragraph
+- Repeater: pain points — pain point text, trigger phrases, and an
+  **acknowledgment/pivot script** (what the rep says when a customer names
+  this specific issue)
+- Repeater: competitor comparisons (name, feature, us, them, why it
+  matters) — manual, feature-by-feature
+- Linked Competitors — checkbox list referencing entries in the Competitors
+  library (see below)
+- Repeater: objections — objection type, concern, script, key points
+  (recap, one per line), counter script (optional), tone
 - Repeater: upsell paths (linked next product, benefit, ideal timing)
 - Taxonomy: `ssb_category`
 
 **`ssb_special`** (Special/Discount)
-- Title, description, start/end date, applicable products (checkbox list)
+- Title, description (post_content — unaffected by the Products change
+  above), start/end date, applicable products (checkbox list)
 - "Active" is calculated from today's date vs. start/end — no manual expiry
 
 **`ssb_competitor`** (Competitors library)
@@ -73,6 +98,23 @@ sales-script-builder/
   named. Separate from the per-product comparison repeater above: this is
   general reusable knowledge, entered once; the repeater is a manual,
   feature-by-feature table entered per product.
+- **Reverse lookup:** `SSB_Meta_Fields::get_products_linked_to_competitor()`
+  finds every product linked to a given competitor (the reverse of Linked
+  Competitors), and flags each one's next upsell tier if it has one. Built
+  for the planned "Competitors At A Glance" flashcard tool — iterates all
+  products in PHP rather than a meta_query, since a serialized-array field
+  can't be reliably searched via meta_query; fine at this scale, reconsider
+  only if the product catalog grows into the hundreds.
+
+### Known interim gap
+
+`templates/script-view.php` still echoes `$product->post_content` in its
+"Overview" section (line ~213) — since products no longer write to
+post_content, this will render empty for any product created or edited
+after this change. This is intentional and temporary: the SPA redesign
+(see the spec doc) replaces this entire section with the new tappable Pain
+Points + mutable Overview Highlights interaction. Rebuilding it here first
+would be throwaway work.
 
 ## Discovery step
 
@@ -112,6 +154,61 @@ not a static list:
   upsell* (scrolls to `#ssb-upsell`, only present on upsell-type scripts).
   This pattern isn't limited to timing objections — any objection with a
   counter script filled in gets the same "Try to counter" option.
+
+## Front-end management (members) + hub
+
+Members manage everything through five pages, none of which touch wp-admin.
+Each page's slug is set independently under **Products/Services >
+Settings**, since a member-facing site rarely uses the same slugs an
+internal tool would.
+
+| Shortcode | Purpose | Default slug |
+|---|---|---|
+| `[ssb_hub]` | Landing page — links to the four below | `sales-hub` |
+| `[ssb_script_builder]` | Jump straight into a script for a call | `sales-scripts` |
+| `[ssb_manage_products]` | Add/edit products | `manage-scripts` |
+| `[ssb_manage_competitors]` | Add/edit Competitors library entries | `manage-competitors` |
+| `[ssb_manage_specials]` | Add/edit specials/discounts (start date, end date, terms, applicable products) | `manage-specials` |
+
+**The hub (`[ssb_hub]`) is meant to be the page members land on first** —
+it's a simple set of cards linking to the other four, nothing more. It
+doesn't manage any content itself, so it has no save/delete logic.
+
+**How every manage page stays in sync with wp-admin:** none of the three
+front-end editors (products, competitors, specials) reimplement their
+fields. Each one calls the exact same static rendering methods wp-admin's
+meta boxes use — `SSB_Meta_Fields::render_*()` for products and specials,
+`SSB_Competitors::render_*()` for competitors — and saving goes through the
+matching static save method (`save_product_fields_from_post()`,
+`save_competitor_fields_from_post()`, `save_special_fields_from_post()`).
+There is exactly one place each field's sanitization rules live; a field
+added or changed later is automatically picked up by both wp-admin and the
+front end.
+
+**Specials already had start date, end date, terms, and applicable
+products** as fields (see Data model) — the front-end specials editor
+reuses `render_special_details()` directly, so those fields didn't need to
+be rebuilt, just exposed outside wp-admin.
+
+**Access, as currently decided:** any member with
+`SSB_Access_Control::user_has_access()` can create or edit **any** product,
+competitor, or special — there's no per-team or per-owner restriction yet,
+since team/account structure isn't built out. Every record still gets
+`post_author` set to whoever created it, so ownership-based filtering later
+(e.g. "only see your own team's content") doesn't require a data
+migration — just a query change. Each editor class has its own
+`user_can_manage_*()` static method (`SSB_Frontend_Editor`,
+`SSB_Frontend_Competitors`, `SSB_Frontend_Specials`) as the single place to
+tighten this later, e.g. to a dedicated capability or role.
+
+**Membership enforcement now covers all five pages**, not just the script
+view — `class-access-control.php`'s page block checks against
+`SSB_Settings::get_all_protected_slugs()`, which includes every page in the
+table above. Adding a plugin page in the future means adding one row to
+`SSB_Settings::page_configs()`; it's gated automatically from there.
+
+**Deletion is a soft delete** (`wp_trash_post`) everywhere — recoverable
+from wp-admin's trash if a member deletes something by mistake.
 
 ## Access control
 
@@ -215,10 +312,11 @@ as hidden fields.
 
 ## Known open items / needs developer input
 
-1. **Set the page slug**: visit **Products/Services > Settings** in wp-admin
-   once the script-view page is created, and enter its slug there (defaults
-   to `sales-scripts`). The settings page will confirm whether it matches a
-   real published page.
+1. **Set every page slug**: visit **Products/Services > Settings** in
+   wp-admin once all five pages exist (hub, script view, manage products,
+   manage competitors, manage specials), and confirm each slug matches.
+   Each field shows a live check for whether it currently matches a real
+   published page.
 2. **Membership/join page URL**: hardcoded placeholder `/membership/` in
    the redirect (`class-access-control.php`) — confirm real URL.
 3. **WPML/Polylang**: not yet wired in. Need to confirm which one is used
@@ -228,6 +326,7 @@ as hidden fields.
 5. **Turn on membership enforcement**: once MemberPress is live, check the
    box at **Products/Services > Settings** ("Require an active MemberPress
    subscription"). It's off by default so the plugin stays testable now.
+   This now gates all five front-end pages, not just script view.
 6. **"Close sale" outcome has no dedicated destination yet**: in the
    objection counter-script outcomes, "still hesitant" and "close sale"
    just show an inline note (no section to scroll to); "compare" and
@@ -239,3 +338,11 @@ as hidden fields.
    per-product "How We Compare" table is still entered by hand per tier
    rather than auto-pulling from the library. Revisit if that manual entry
    becomes a bottleneck once more tiers exist.
+8. **Logged-out submissions to the front-end save/delete handlers are a
+   silent no-op** (no `admin_post_nopriv_*` hook is registered on purpose,
+   so nothing happens rather than exposing an error). A nicer
+   redirect-to-login could be added if that edge case matters in practice.
+9. **No per-team ownership restriction yet** — by design, for now. Revisit
+   `user_can_manage_*()` in `class-frontend-editor.php`,
+   `class-frontend-competitors.php`, and `class-frontend-specials.php` once
+   team/account structure exists.
