@@ -48,6 +48,28 @@
 	font-size: inherit;
 }
 
+.ssb-special-dates {
+	font-size: 12px;
+	color: #888;
+	margin-left: 8px;
+}
+
+.ssb-form-notice-success {
+	background: #eafbea;
+	border-left: 4px solid #46b450;
+	padding: 8px 12px;
+	color: #1a5c1a;
+	margin-bottom: 12px;
+}
+
+.ssb-form-notice-error {
+	background: #fbeaea;
+	border-left: 4px solid #b32d2e;
+	padding: 8px 12px;
+	color: #7a1f1f;
+	margin-bottom: 12px;
+}
+
 .ssb-manage-form {
 	max-width: 720px;
 }

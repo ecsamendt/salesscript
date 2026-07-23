@@ -67,3 +67,7 @@ delete_metadata( 'user', 0, 'ssb_favorite_scripts', '', true );
 delete_option( 'ssb_script_view_slug' );
 delete_option( 'ssb_enforce_membership' );
 delete_option( 'ssb_manage_page_slug' );
+delete_option( 'ssb_hub_page_slug' );
+delete_option( 'ssb_manage_competitors_slug' );
+delete_option( 'ssb_manage_specials_slug' );
+delete_option( 'ssb_app_page_slug' );

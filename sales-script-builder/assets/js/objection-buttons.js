@@ -3,11 +3,15 @@
  * #ssb-objections[data-objections]. All state (which objection is active,
  * which have been discussed) lives in memory for this page load only --
  * it intentionally does not persist, since it should reset for each new call.
+ *
+ * Exposed as window.SSBObjectionButtons.init() so the SPA (assets/js/app.js)
+ * can re-run it after AJAX-loading new script content into the Call Script
+ * tab -- see discovery.js for the same pattern and the reasoning.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
+	function init() {
 		const section = document.getElementById( 'ssb-objections' );
 		if ( ! section ) {
 			return;
@@ -177,5 +181,8 @@
 		}
 
 		renderButtons();
-	} );
+	}
+
+	window.SSBObjectionButtons = { init: init };
+	document.addEventListener( 'DOMContentLoaded', init );
 } )();

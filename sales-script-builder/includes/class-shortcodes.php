@@ -14,6 +14,7 @@ class SSB_Shortcodes {
 		add_shortcode( 'ssb_script_builder', array( $this, 'render_script_builder' ) );
 		add_shortcode( 'ssb_favorites', array( $this, 'render_favorites_dashboard' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_frontend_assets' ) );
+		add_action( 'wp_ajax_ssb_load_script_output', array( $this, 'handle_load_script_output_ajax' ) );
 	}
 
 	/**
@@ -70,5 +71,27 @@ class SSB_Shortcodes {
 		ob_start();
 		include SSB_PLUGIN_DIR . 'templates/favorites-dashboard.php';
 		return ob_get_clean();
+	}
+
+	/**
+	 * AJAX endpoint for the Call Script tab in [ssb_app] -- given a product
+	 * ID and call type, returns the assembled script HTML. See
+	 * templates/app-script-output.php.
+	 */
+	public function handle_load_script_output_ajax(): void {
+		check_ajax_referer( 'ssb_app_nonce', 'ssb_nonce' );
+
+		if ( ! SSB_Access_Control::user_has_access() ) {
+			wp_send_json_error( array( 'message' => __( 'Access denied.', 'sales-script-builder' ) ), 403 );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$call_type  = isset( $_POST['call_type'] ) ? sanitize_key( wp_unslash( $_POST['call_type'] ) ) : '';
+
+		ob_start();
+		include SSB_PLUGIN_DIR . 'templates/app-script-output.php';
+		$html = ob_get_clean();
+
+		wp_send_json_success( array( 'html' => $html ) );
 	}
 }

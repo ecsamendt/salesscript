@@ -1,24 +1,20 @@
 <?php
 /**
- * Front-end product create/edit form. Included by
- * SSB_Frontend_Editor::render_manager() when ssb_action=new or
- * ssb_action=edit&product_id=X is present.
+ * Front-end product create/edit form -- rendered as an HTML fragment.
+ * Expects $product_id (int, 0 for new) to be set by the caller
+ * (SSB_Frontend_Editor::render_form_fragment()). No $_GET dependency.
  *
- * Reuses SSB_Meta_Fields::render_pricing/render_pain_points/render_competitors/
- * render_linked_competitors/render_objections/render_upsell directly -- these
- * are the exact same static methods wp-admin uses, so the fields here are
- * never out of sync with what an admin sees in wp-admin.
+ * Reuses SSB_Meta_Fields::render_pricing/render_pain_points/
+ * render_overview_highlights/render_competitors/render_linked_competitors/
+ * render_objections/render_upsell/render_internal_notes directly -- these
+ * are the exact same static methods wp-admin uses.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$manage_url = home_url( '/' . SSB_Settings::get_manage_slug() . '/' );
-
-$action     = isset( $_GET['ssb_action'] ) ? sanitize_key( wp_unslash( $_GET['ssb_action'] ) ) : '';
-$product_id = isset( $_GET['product_id'] ) ? absint( $_GET['product_id'] ) : 0;
-$is_editing = ( 'edit' === $action && $product_id );
+$is_editing = $product_id > 0;
 
 if ( $is_editing ) {
 	$product = get_post( $product_id );
@@ -28,8 +24,7 @@ if ( $is_editing ) {
 	}
 } else {
 	// A stub, unsaved WP_Post so the same render_* methods work identically
-	// for "new" as they do for "edit" -- get_post_meta(0, ...) safely returns
-	// empty values, so every field just renders blank.
+	// for "new" as they do for "edit".
 	$product = new WP_Post( (object) array( 'ID' => 0 ) );
 }
 
@@ -51,28 +46,25 @@ if ( is_wp_error( $categories ) ) {
 	$categories = array();
 }
 ?>
-<div class="ssb-manage-form">
-	<p><a href="<?php echo esc_url( $manage_url ); ?>">&larr; <?php esc_html_e( 'Back to all products', 'sales-script-builder' ); ?></a></p>
+<div class="ssb-manage-form" data-form="product">
+	<button type="button" class="ssb-link-btn ssb-back-to-list-btn">&larr; <?php esc_html_e( 'Back to all products', 'sales-script-builder' ); ?></button>
 
 	<h2><?php echo $is_editing ? esc_html__( 'Edit Product', 'sales-script-builder' ) : esc_html__( 'Add New Product', 'sales-script-builder' ); ?></h2>
 
-	<?php if ( isset( $_GET['ssb_saved'] ) ) : ?>
-		<p class="ssb-saved-notice"><?php esc_html_e( 'Saved.', 'sales-script-builder' ); ?></p>
-	<?php endif; ?>
+	<div class="ssb-form-notice" hidden></div>
 
-	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-		<?php wp_nonce_field( 'ssb_save_product_frontend', 'ssb_frontend_product_nonce' ); ?>
-		<input type="hidden" name="action" value="ssb_save_product_frontend" />
+	<form class="ssb-ajax-form" data-ajax-action="ssb_save_product">
+		<?php wp_nonce_field( 'ssb_app_nonce', 'ssb_nonce' ); ?>
 		<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->ID ); ?>" />
 
 		<p>
-			<label for="ssb-post-title"><?php esc_html_e( 'Product/Service Name', 'sales-script-builder' ); ?></label><br />
-			<input type="text" id="ssb-post-title" name="post_title" class="widefat" required value="<?php echo esc_attr( $product->post_title ?? '' ); ?>" />
+			<label for="ssb-post-title-<?php echo esc_attr( $product->ID ); ?>"><?php esc_html_e( 'Product/Service Name', 'sales-script-builder' ); ?></label><br />
+			<input type="text" id="ssb-post-title-<?php echo esc_attr( $product->ID ); ?>" name="post_title" class="widefat" required value="<?php echo esc_attr( $product->post_title ?? '' ); ?>" />
 		</p>
 
 		<p>
-			<label for="ssb-category"><?php esc_html_e( 'Category', 'sales-script-builder' ); ?></label><br />
-			<select id="ssb-category" name="ssb_category">
+			<label for="ssb-category-<?php echo esc_attr( $product->ID ); ?>"><?php esc_html_e( 'Category', 'sales-script-builder' ); ?></label><br />
+			<select id="ssb-category-<?php echo esc_attr( $product->ID ); ?>" name="ssb_category">
 				<option value=""><?php esc_html_e( '-- None --', 'sales-script-builder' ); ?></option>
 				<?php foreach ( $categories as $category ) : ?>
 					<option value="<?php echo esc_attr( $category->term_id ); ?>" <?php selected( $current_category_id, $category->term_id ); ?>>

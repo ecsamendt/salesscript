@@ -2,16 +2,20 @@
  * Handles the favorite/bookmark star toggle on script-view pages.
  * Expects markup like:
  * <button class="ssb-favorite-btn" data-product-id="42" data-call-type="upsell" data-favorited="0">☆</button>
+ *
+ * Uses event delegation on document rather than binding to each button
+ * individually -- favorite buttons in the SPA (assets/js/app.js) can appear
+ * well after DOMContentLoaded, once the Call Script tab AJAX-loads a
+ * script. Delegation means this keeps working with no re-init call needed.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
-		document.querySelectorAll( '.ssb-favorite-btn' ).forEach( function ( btn ) {
-			btn.addEventListener( 'click', function () {
-				toggleFavorite( btn );
-			} );
-		} );
+	document.addEventListener( 'click', function ( event ) {
+		const btn = event.target.closest( '.ssb-favorite-btn' );
+		if ( btn ) {
+			toggleFavorite( btn );
+		}
 	} );
 
 	function toggleFavorite( btn ) {

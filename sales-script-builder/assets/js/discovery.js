@@ -3,11 +3,16 @@
  * Outbound (cold) calls get a competitor picker pulling from the Competitors
  * library; inbound calls get a three-way branch with guidance text. All of
  * this is presentation only -- nothing here is saved.
+ *
+ * Exposed as window.SSBDiscovery.init() so the SPA (assets/js/app.js) can
+ * re-run it after AJAX-loading new script content into the Call Script tab
+ * -- DOMContentLoaded only fires once, but script content in the SPA loads
+ * repeatedly as the rep picks different products/call types.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
+	function init() {
 		const section = document.querySelector( '.ssb-discovery' );
 		if ( ! section ) {
 			return;
@@ -124,5 +129,9 @@
 				}
 			} );
 		} );
-	} );
+	}
+
+	window.SSBDiscovery = { init: init };
+	document.addEventListener( 'DOMContentLoaded', init );
 } )();
+

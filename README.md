@@ -34,31 +34,114 @@ sales-script-builder/
 │   ├── class-favorites.php      User-level favoriting (AJAX)
 │   ├── class-ga4-events.php     Enqueues anonymous GA4 event tracking
 │   ├── class-access-control.php Membership gate (MemberPress wrapper)
-│   ├── class-shortcodes.php     [ssb_script_builder] + [ssb_favorites] shortcodes
+│   ├── class-shortcodes.php     [ssb_script_builder] + [ssb_favorites], + the
+│   │                             Call Script AJAX endpoint the SPA tab uses
 │   ├── class-settings.php       Settings page (every plugin page slug + enforcement)
 │   ├── class-sample-content.php One-click insert/remove of example data
 │   ├── class-admin-columns.php  Custom admin list table columns
-│   ├── class-hub.php            [ssb_hub] landing page (members' entry point)
-│   ├── class-frontend-editor.php      Front-end product create/edit (members)
-│   ├── class-frontend-competitors.php Front-end competitor create/edit (members)
-│   └── class-frontend-specials.php    Front-end special create/edit (members)
+│   ├── class-app.php            [ssb_app] -- the SPA shell (recommended entry point)
+│   ├── class-hub.php            [ssb_hub] standalone landing page (legacy, still renders)
+│   ├── class-frontend-editor.php      Products: fragments + AJAX handlers for [ssb_app],
+│   │                                   plus the (now button-inert) [ssb_manage_products] page
+│   ├── class-frontend-competitors.php Same pattern, Competitors library
+│   └── class-frontend-specials.php    Same pattern, Specials/Discounts
 ├── templates/
-│   ├── script-view.php               Rep-facing script display
+│   ├── script-view.php               Rep-facing script display (standalone page, untouched)
 │   ├── favorites-dashboard.php       "My Scripts" favorites list
-│   ├── manage-products-list.php      Front-end product list
-│   ├── manage-product-form.php       Front-end product create/edit form
-│   ├── manage-competitors-list.php   Front-end competitor list
-│   ├── manage-competitor-form.php    Front-end competitor create/edit form
-│   ├── manage-specials-list.php      Front-end special list
-│   └── manage-special-form.php       Front-end special create/edit form
+│   ├── app-call-script.php           SPA Call Script tab: picker only
+│   ├── app-script-output.php         SPA: AJAX-loaded script results
+│   ├── app-glance.php                SPA: Competitors At A Glance tab
+│   ├── manage-products-list.php      Product list fragment (shared by [ssb_app] + standalone)
+│   ├── manage-product-form.php       Product form fragment (shared by [ssb_app] + standalone)
+│   ├── manage-competitors-list.php   Same pattern, Competitors library
+│   ├── manage-competitor-form.php    Same pattern, Competitors library
+│   ├── manage-specials-list.php      Same pattern, Specials/Discounts
+│   └── manage-special-form.php       Same pattern, Specials/Discounts
 ├── assets/
 │   ├── js/                      admin-repeater, favorites, ga4-events, copy-protect,
-│   │                             objection-buttons, discovery
-│   └── css/                     admin.css, frontend.css, manage.css, hub.css
+│   │                             objection-buttons, discovery (all re-initializable,
+│   │                             see "SPA re-init" below), app.js (orchestration),
+│   │                             glance.js (Competitors At A Glance)
+│   └── css/                     admin.css, frontend.css, manage.css, hub.css, app.css
 └── languages/                   .mo/.po files (empty — pending WPML/Polylang setup)
 ```
 
-## Data model
+## Single-page app ([ssb_app]) -- the recommended entry point
+
+**`[ssb_app]`** is one shortcode, one page, five tabs: Call Script, Add
+Products, Add Competitors, Specials, Competitors At A Glance. Set its slug
+under **Products/Services > Settings** ("App Page Slug," defaults to
+`sales-app`).
+
+### Migration note -- read before deploying
+
+The five original shortcodes (`[ssb_hub]`, `[ssb_script_builder]`,
+`[ssb_manage_products]`, `[ssb_manage_competitors]`, `[ssb_manage_specials]`)
+still exist and still render. But building the SPA required converting the
+shared list/form templates (Products, Competitors, Specials) from
+href-based navigation to data-attribute buttons wired up by `assets/js/app.js`
+-- and that script only initializes inside `[ssb_app]`'s container
+(`#ssb-app`). **The practical effect: on the three standalone manage pages,
+Edit/Add New/Delete buttons no longer respond.** The lists still display
+correctly (read-only), but nothing happens when a button is clicked.
+
+`[ssb_script_builder]` (the script view) and `[ssb_hub]` (pure navigation
+links) were **not** touched by this and still work exactly as before --
+only the three manage pages are affected.
+
+**Recommendation: create the one `[ssb_app]` page, then unpublish or
+redirect the five old pages.** They were deliberately left in place rather
+than deleted, in case something still links to them during the transition,
+but they are not a supported parallel path going forward.
+
+### How state behaves per tab
+
+| Tab | On leaving and returning |
+|---|---|
+| Call Script | **Always resets** to a blank picker (enforced in `app.js`'s tab-switch handler) |
+| Add Products / Add Competitors / Specials | **Remembers** where the rep was -- panels are never unmounted, just hidden, so this is free |
+| Competitors At A Glance | Same as the manage tabs (not unmounted) -- whichever competitor was open stays open |
+
+### Architecture -- how it actually avoids page reloads
+
+- **All five panels render server-side on initial page load.** Tab
+  switching is pure CSS/JS show-and-hide (`assets/css/app.css`'s
+  `.ssb-app-panel.is-active`), not client-side routing.
+- **Products/Competitors/Specials** each got new `wp_ajax_*` handlers
+  alongside their original `admin_post_*` ones (see each class's docblock).
+  Saving, deleting, and loading a form/list all return either JSON with an
+  HTML fragment, or a `message` on failure -- `app.js` swaps the relevant
+  container's `innerHTML` rather than navigating anywhere.
+- **Call Script** works the same way: `templates/app-call-script.php` is
+  just the picker; submitting it calls the new `ssb_load_script_output`
+  AJAX action (`class-shortcodes.php`), which renders
+  `templates/app-script-output.php` (a fresh copy of `script-view.php`'s
+  output logic, explicit-parameter-driven instead of `$_GET`-driven -- kept
+  as a deliberate duplicate rather than shared, since this section is
+  getting substantially rebuilt next for the tappable pain
+  points/highlights redesign; unifying it now would be short-lived work)
+  and returns it as HTML.
+- **`discovery.js` and `objection-buttons.js` needed a fix** to work in
+  this architecture: both only ever ran once, on `DOMContentLoaded`. In the
+  SPA, their target content (the discovery section, the objections section)
+  doesn't exist until a script is AJAX-loaded well after that point. Both
+  now expose `window.SSBDiscovery.init()` / `window.SSBObjectionButtons.init()`,
+  which `app.js` calls again every time new script content arrives.
+  `favorites.js` got a different fix for the same underlying problem: it
+  now uses event delegation on `document` instead of binding to each
+  button individually, so newly-added favorite buttons work with no
+  re-init call needed at all.
+
+### Known gap in this pass
+
+GA4's `view_special` event (`assets/js/ga4-events.js`) only fires once on
+`DOMContentLoaded`, scanning for `.ssb-special-banner` elements present at
+that moment. Special banners loaded later via the Call Script tab's AJAX
+call won't trigger this event. Analytics-only gap, not a functional one --
+worth fixing in a later pass by giving `ga4-events.js` the same re-init
+treatment as `discovery.js`/`objection-buttons.js`.
+
+
 
 **`ssb_product`** (Product/Service)
 - Title, price/tier
@@ -156,6 +239,13 @@ not a static list:
   counter script filled in gets the same "Try to counter" option.
 
 ## Front-end management (members) + hub
+
+> **This section describes the original five-separate-pages approach.**
+> It's superseded by `[ssb_app]` (see the section above) as the recommended
+> way to use the plugin -- read that section's migration note first. This
+> section is kept for reference since the underlying render/save logic
+> (`SSB_Meta_Fields`, `SSB_Competitors`) is shared between both approaches,
+> and the standalone pages still partially render.
 
 Members manage everything through five pages, none of which touch wp-admin.
 Each page's slug is set independently under **Products/Services >
@@ -312,11 +402,11 @@ as hidden fields.
 
 ## Known open items / needs developer input
 
-1. **Set every page slug**: visit **Products/Services > Settings** in
-   wp-admin once all five pages exist (hub, script view, manage products,
-   manage competitors, manage specials), and confirm each slug matches.
-   Each field shows a live check for whether it currently matches a real
-   published page.
+1. **Set the App page slug first**: visit **Products/Services > Settings**
+   in wp-admin, create one page with `[ssb_app]`, and set "App Page Slug"
+   to match. The other five slugs (legacy standalone pages) only matter if
+   those pages are being kept around during a transition period -- see the
+   SPA section's migration note.
 2. **Membership/join page URL**: hardcoded placeholder `/membership/` in
    the redirect (`class-access-control.php`) — confirm real URL.
 3. **WPML/Polylang**: not yet wired in. Need to confirm which one is used
@@ -326,7 +416,8 @@ as hidden fields.
 5. **Turn on membership enforcement**: once MemberPress is live, check the
    box at **Products/Services > Settings** ("Require an active MemberPress
    subscription"). It's off by default so the plugin stays testable now.
-   This now gates all five front-end pages, not just script view.
+   This now gates all six front-end pages (the app + the five legacy
+   pages), not just script view.
 6. **"Close sale" outcome has no dedicated destination yet**: in the
    objection counter-script outcomes, "still hesitant" and "close sale"
    just show an inline note (no section to scroll to); "compare" and
@@ -342,7 +433,20 @@ as hidden fields.
    silent no-op** (no `admin_post_nopriv_*` hook is registered on purpose,
    so nothing happens rather than exposing an error). A nicer
    redirect-to-login could be added if that edge case matters in practice.
+   This applies to both the `admin_post_*` handlers and the newer
+   `wp_ajax_*` ones.
 9. **No per-team ownership restriction yet** — by design, for now. Revisit
    `user_can_manage_*()` in `class-frontend-editor.php`,
    `class-frontend-competitors.php`, and `class-frontend-specials.php` once
    team/account structure exists.
+10. **Call Script's Pain Points section is not yet redesigned.** It still
+    shows the plain static bullet list from before the SPA rebuild --
+    tappable/mutable pain points with acknowledgment/pivot scripts and the
+    mutable Overview Highlights list (both already exist in the data model,
+    see "Data model" above) are not yet wired into
+    `templates/app-script-output.php`. This is the next planned pass.
+11. **GA4's `view_special` event doesn't fire for AJAX-loaded specials** --
+    see the SPA section's "Known gap" note above.
+12. **The five legacy standalone pages should be unpublished or redirected**
+    once `[ssb_app]` is confirmed working -- their manage-page buttons no
+    longer respond (see the SPA section's migration note).
